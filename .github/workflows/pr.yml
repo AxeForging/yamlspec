@@ -148,6 +148,20 @@ jobs:
           AI_PROVIDER: gemini
           AI_MODEL: gemini-2.5-flash
           AI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SHOW_TOKEN_USAGE: true
+          INCREMENTAL: false
+          CONTEXT_FILES: 'CLAUDE.md,README.md'
+          PROJECT_CONTEXT: 'yamlspec is a YAML test framework with RSpec-like assertions (Go CLI, urfave/cli v1). Zero Helm/Kustomize Go dependencies by design — rendering via shell pre_run commands only.'
+          CUSTOM_RULES: |
+            ONLY flag: logical errors, security issues, breaking changes, missing tests.
+            DO NOT comment on: style, naming, minor perf, formatting.
+            Project-specific rules:
+            - New assertion operators MUST also be added to the ai-help command output (actions/aihelp.go)
+            - New CLI commands or flags MUST also be reflected in the ai-help command output (actions/aihelp.go)
+            - pre_run commands are plain shell strings (sh -c), never suggest replacing them with Go libraries
+            - This project has zero Helm/Kustomize Go dependencies by design — never suggest adding them
+            - All formatters implement the Formatter interface (services/formatter.go)
+            - Domain models live in domain/ — never put business logic there
 
   validate:
     name: Structure Lint

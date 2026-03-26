@@ -160,7 +160,7 @@ func TestE2E_PreRun_GeneratesManifests(t *testing.T) {
 	}
 
 	// Clean up generated manifests
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-prerun/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-prerun/manifests"))
 }
 
 func TestE2E_PreRun_FailingCommand(t *testing.T) {
@@ -168,7 +168,7 @@ func TestE2E_PreRun_FailingCommand(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "bad-prerun")
 	manifestsDir := filepath.Join(specDir, "manifests")
-	os.MkdirAll(manifestsDir, 0755)
+	_ = os.MkdirAll(manifestsDir, 0755)
 
 	spec := `name: "Bad pre-run"
 tags: ["bad-prerun"]
@@ -182,7 +182,9 @@ describe:
         expect: metadata.name
         toExist: true
 `
-	os.WriteFile(filepath.Join(specDir, "spec.yaml"), []byte(spec), 0644)
+	if err := os.WriteFile(filepath.Join(specDir, "spec.yaml"), []byte(spec), 0644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
 
 	output, exitCode := run(t, bin, "validate", "--test-dir", tmpDir)
 
@@ -229,7 +231,7 @@ func TestE2E_Helm_TemplateRendering(t *testing.T) {
 	}
 
 	// Clean up generated manifests
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
 }
 
 func TestE2E_Helm_JSONOutputHasCorrectValues(t *testing.T) {
@@ -283,7 +285,7 @@ func TestE2E_Helm_JSONOutputHasCorrectValues(t *testing.T) {
 	}
 
 	// Clean up
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
 }
 
 // --- Kustomize pre_run ---
@@ -319,7 +321,7 @@ func TestE2E_Kustomize_BuildRendering(t *testing.T) {
 	}
 
 	// Clean up
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
 }
 
 func TestE2E_Kustomize_JSONOutputHasCorrectValues(t *testing.T) {
@@ -351,7 +353,9 @@ func TestE2E_Kustomize_JSONOutputHasCorrectValues(t *testing.T) {
 			Success          bool `json:"success"`
 		} `json:"summary"`
 	}
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
 
 	if len(result.Specs) != 1 {
 		t.Fatalf("expected 1 spec, got %d", len(result.Specs))
@@ -376,7 +380,7 @@ func TestE2E_Kustomize_JSONOutputHasCorrectValues(t *testing.T) {
 	}
 
 	// Clean up
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
 }
 
 // --- All three engines in one run ---
@@ -424,7 +428,9 @@ func TestE2E_AllEngines_RunTogether(t *testing.T) {
 			Success    bool `json:"success"`
 		} `json:"summary"`
 	}
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
 
 	// Should have at least 6 specs (basic, failing, tagged, prerun, operators, multi-doc)
 	// Plus helm and kustomize if available
@@ -440,9 +446,9 @@ func TestE2E_AllEngines_RunTogether(t *testing.T) {
 	}
 
 	// Clean up generated manifests
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
-	os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-prerun/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-helm/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-kustomize/manifests"))
+	_ = os.RemoveAll(filepath.Join(repoRoot(t), "integration/testdata/with-prerun/manifests"))
 }
 
 // --- All operators end-to-end ---
@@ -585,9 +591,9 @@ func TestE2E_JSONOutput_Structure(t *testing.T) {
 
 	var result struct {
 		Specs []struct {
-			Name      string `json:"name"`
+			Name      string   `json:"name"`
 			Tags      []string `json:"tags"`
-			Status    string `json:"status"`
+			Status    string   `json:"status"`
 			Describes []struct {
 				Name       string `json:"name"`
 				Select     string `json:"select"`
@@ -679,7 +685,9 @@ func TestE2E_JSONOutput_FailuresIncludeErrors(t *testing.T) {
 			Success          bool `json:"success"`
 		} `json:"summary"`
 	}
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
 
 	if result.Summary.Success {
 		t.Error("expected summary.success to be false")

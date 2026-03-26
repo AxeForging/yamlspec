@@ -21,6 +21,7 @@ func main() {
 	validateAction := actions.NewValidateAction()
 	listAction := actions.NewListAction()
 	initAction := actions.NewInitAction()
+	aiHelpAction := actions.NewAIHelpAction()
 	versionAction := actions.NewVersionAction(Version, BuildTime, GitCommit)
 
 	app := cli.NewApp()
@@ -78,6 +79,11 @@ func main() {
 				testDirFlag,
 			},
 			Action: initAction.Execute,
+		},
+		{
+			Name:   "ai-help",
+			Usage:  "Print comprehensive reference guide for AI assistants",
+			Action: aiHelpAction.Execute,
 		},
 		{
 			Name:   "version",
