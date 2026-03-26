@@ -144,11 +144,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: AxeForging/reviewforge@main
         with:
-          provider: gemini
-          model: gemini-2.5-flash
-          show_token_usage: true
-          incremental: false
-          review_rules: concise
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_PROVIDER: gemini
+          AI_MODEL: gemini-2.5-flash
+          AI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   validate:
     name: Structure Lint
