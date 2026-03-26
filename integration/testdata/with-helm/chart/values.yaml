@@ -1,0 +1,10 @@
+namespace: default
+replicas: 1
+port: 8080
+image:
+  repository: nginx
+  tag: "1.25.3"
+resources:
+  limits:
+    cpu: "250m"
+    memory: "128Mi"

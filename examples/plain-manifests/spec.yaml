@@ -1,0 +1,76 @@
+name: "Production web app"
+tags: ["deployment", "service", "configmap", "production"]
+
+describe:
+  - name: "Deployment configuration"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 3 replicas"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "be in production namespace"
+        expect: metadata.namespace
+        toEqual: "production"
+
+      - should: "have a pinned image tag (not :latest)"
+        expect: spec.template.spec.containers[0].image
+        toNotEndWith: ":latest"
+
+      - should: "use a semver image tag"
+        expect: spec.template.spec.containers[0].image
+        toMatch: ':\d+\.\d+\.\d+$'
+
+      - should: "have CPU limits"
+        expect: spec.template.spec.containers[0].resources.limits.cpu
+        toExist: true
+
+      - should: "have memory limits"
+        expect: spec.template.spec.containers[0].resources.limits.memory
+        toExist: true
+
+      - should: "have CPU requests"
+        expect: spec.template.spec.containers[0].resources.requests.cpu
+        toExist: true
+
+      - should: "have memory requests"
+        expect: spec.template.spec.containers[0].resources.requests.memory
+        toExist: true
+
+      - should: "have a liveness probe"
+        expect: spec.template.spec.containers[0].livenessProbe
+        toExist: true
+
+      - should: "have app labels"
+        expect: metadata.labels
+        toHaveKey: "app"
+
+  - name: "Service configuration"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be ClusterIP type"
+        expect: spec.type
+        toEqual: "ClusterIP"
+
+      - should: "target port 80"
+        expect: spec.ports[0].targetPort
+        toEqual: 80
+
+      - should: "have a selector"
+        expect: spec.selector
+        toHaveKey: "app"
+
+  - name: "ConfigMap"
+    select: 'select(.kind == "ConfigMap")'
+    it:
+      - should: "have APP_ENV set to production"
+        expect: data.APP_ENV
+        toEqual: "production"
+
+      - should: "have LOG_LEVEL configured"
+        expect: data.LOG_LEVEL
+        toExist: true
+
+      - should: "use a valid log level"
+        expect: data.LOG_LEVEL
+        toBeOneOf: ["debug", "info", "warn", "error"]

@@ -1,0 +1,33 @@
+name: "Basic deployment test"
+tags: ["deployment", "service"]
+
+describe:
+  - name: "Deployment configuration"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 3 replicas"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "use nginx image"
+        expect: spec.template.spec.containers[0].image
+        toStartWith: "nginx:"
+
+      - should: "be in production namespace"
+        expect: metadata.namespace
+        toEqual: "production"
+
+      - should: "have resource limits"
+        expect: spec.template.spec.containers[0].resources.limits
+        toExist: true
+
+  - name: "Service configuration"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be ClusterIP type"
+        expect: spec.type
+        toEqual: "ClusterIP"
+
+      - should: "expose port 80"
+        expect: spec.ports[0].port
+        toEqual: 80

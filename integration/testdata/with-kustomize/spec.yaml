@@ -1,0 +1,37 @@
+name: "Kustomize overlay rendering"
+tags: ["kustomize"]
+
+pre_run:
+  - mkdir -p manifests
+  - kustomize build base > manifests/rendered.yaml
+
+describe:
+  - name: "Deployment from Kustomize"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 2 replicas from patch"
+        expect: spec.replicas
+        toEqual: 2
+
+      - should: "be in staging namespace"
+        expect: metadata.namespace
+        toEqual: "staging"
+
+      - should: "have env label from commonLabels"
+        expect: metadata.labels.env
+        toEqual: "staging"
+
+      - should: "use nginx image"
+        expect: spec.template.spec.containers[0].image
+        toEqual: "nginx:1.25.3"
+
+  - name: "Service from Kustomize"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be in staging namespace"
+        expect: metadata.namespace
+        toEqual: "staging"
+
+      - should: "have env label"
+        expect: metadata.labels.env
+        toEqual: "staging"

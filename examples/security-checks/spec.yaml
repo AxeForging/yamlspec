@@ -1,0 +1,70 @@
+name: "Security best practices"
+tags: ["security", "hardening"]
+
+describe:
+  - name: "Pod security"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "run as non-root"
+        expect: spec.template.spec.securityContext.runAsNonRoot
+        toEqual: true
+
+      - should: "set a non-root user ID"
+        expect: spec.template.spec.securityContext.runAsUser
+        toBeGreaterThan: 0
+
+      - should: "disable service account token auto-mount"
+        expect: spec.template.spec.automountServiceAccountToken
+        toEqual: false
+
+  - name: "Container security"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "use read-only root filesystem"
+        expect: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+        toEqual: true
+
+      - should: "disallow privilege escalation"
+        expect: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+        toEqual: false
+
+      - should: "drop all capabilities"
+        expect: spec.template.spec.containers[0].securityContext.capabilities.drop
+        toContainItem: "ALL"
+
+  - name: "Image policy"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "use a private registry"
+        expect: spec.template.spec.containers[0].image
+        toNotStartWith: "docker.io/"
+
+      - should: "not use latest tag"
+        expect: spec.template.spec.containers[0].image
+        toNotEndWith: ":latest"
+
+      - should: "use semver tag"
+        expect: spec.template.spec.containers[0].image
+        toMatch: ':v\d+\.\d+\.\d+$'
+
+  - name: "Resource limits"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have CPU limits"
+        expect: spec.template.spec.containers[0].resources.limits.cpu
+        toExist: true
+
+      - should: "have memory limits"
+        expect: spec.template.spec.containers[0].resources.limits.memory
+        toExist: true
+
+  - name: "Health checks"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have a liveness probe"
+        expect: spec.template.spec.containers[0].livenessProbe
+        toExist: true
+
+      - should: "have a readiness probe"
+        expect: spec.template.spec.containers[0].readinessProbe
+        toExist: true

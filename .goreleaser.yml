@@ -1,0 +1,68 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.BuildTime={{.Date}}
+      - -X main.GitCommit={{.FullCommit}}
+    ignore:
+      - goos: windows
+        goarch: arm
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "yamlspec-{{ .Os }}-{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: AxeForging
+    name: yamlspec
+  draft: false
+  prerelease: auto
+  header: |
+    ## Installation
+
+    ```bash
+    # Linux (amd64)
+    curl -sSL https://github.com/AxeForging/yamlspec/releases/download/{{ .Tag }}/yamlspec-linux-amd64.tar.gz | tar xz
+    sudo mv yamlspec /usr/local/bin/
+
+    # macOS (Apple Silicon)
+    curl -sSL https://github.com/AxeForging/yamlspec/releases/download/{{ .Tag }}/yamlspec-darwin-arm64.tar.gz | tar xz
+    sudo mv yamlspec /usr/local/bin/
+    ```

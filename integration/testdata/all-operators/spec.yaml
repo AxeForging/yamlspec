@@ -1,0 +1,130 @@
+name: "All operators test"
+tags: ["operators"]
+
+describe:
+  - name: "Equality operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toEqual int"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "toEqual string"
+        expect: metadata.namespace
+        toEqual: "production"
+
+      - should: "toNotEqual"
+        expect: metadata.namespace
+        toNotEqual: "default"
+
+  - name: "Numeric comparison operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toBeGreaterThan"
+        expect: spec.replicas
+        toBeGreaterThan: 2
+
+      - should: "toBeLessThan"
+        expect: spec.replicas
+        toBeLessThan: 5
+
+      - should: "toBeGreaterOrEqual (equal)"
+        expect: spec.replicas
+        toBeGreaterOrEqual: 3
+
+      - should: "toBeLessOrEqual (equal)"
+        expect: spec.replicas
+        toBeLessOrEqual: 3
+
+      - should: "range check with combined operators"
+        expect: spec.replicas
+        toBeGreaterOrEqual: 1
+        toBeLessOrEqual: 10
+
+  - name: "String operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toContain"
+        expect: spec.template.spec.containers[0].image
+        toContain: "app"
+
+      - should: "toNotContain"
+        expect: spec.template.spec.containers[0].image
+        toNotContain: "latest"
+
+      - should: "toStartWith"
+        expect: spec.template.spec.containers[0].image
+        toStartWith: "myregistry.io/"
+
+      - should: "toEndWith"
+        expect: spec.template.spec.containers[0].image
+        toEndWith: ":v2.1.0"
+
+      - should: "toNotStartWith"
+        expect: spec.template.spec.containers[0].image
+        toNotStartWith: "docker.io/"
+
+      - should: "toNotEndWith"
+        expect: spec.template.spec.containers[0].image
+        toNotEndWith: ":latest"
+
+      - should: "toMatch regex"
+        expect: spec.template.spec.containers[0].image
+        toMatch: '^[a-z]+\.[a-z]+/.+:v\d+\.\d+\.\d+$'
+
+      - should: "combined string operators"
+        expect: spec.template.spec.containers[0].image
+        toStartWith: "myregistry.io/"
+        toNotEndWith: ":latest"
+        toContain: "app"
+
+  - name: "Existence operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toExist true"
+        expect: spec.template.spec.containers[0].resources
+        toExist: true
+
+      - should: "toExist false for missing"
+        expect: spec.template.spec.containers[0].livenessProbe
+        toExist: false
+
+  - name: "Object operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toHaveKey"
+        expect: metadata.labels
+        toHaveKey: "app"
+
+  - name: "Set membership operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toBeOneOf"
+        expect: metadata.namespace
+        toBeOneOf: ["production", "staging", "dev"]
+
+      - should: "toNotBeOneOf"
+        expect: metadata.namespace
+        toNotBeOneOf: ["default", "kube-system"]
+
+  - name: "Array operators"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "toHaveLength"
+        expect: spec.template.spec.containers[0].ports
+        toHaveLength: 3
+
+      - should: "toHaveMinLength"
+        expect: spec.template.spec.containers[0].ports
+        toHaveMinLength: 2
+
+      - should: "toHaveMaxLength"
+        expect: spec.template.spec.containers[0].ports
+        toHaveMaxLength: 5
+
+  - name: "Bracket notation for special keys"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "access dotted label key"
+        expect: '.metadata.labels["app.kubernetes.io/name"]'
+        toEqual: "operator-test"

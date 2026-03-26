@@ -1,0 +1,59 @@
+dir_structure:
+  allowedPaths:
+    - "."
+    - "actions/**"
+    - "domain/**"
+    - "services/**"
+    - "helpers/**"
+    - "integration/**"
+    - "docs/**"
+    - "examples/**"
+    - ".github/**"
+    - ".claude/**"
+  disallowedPaths:
+    - "vendor/**"
+    - "node_modules/**"
+    - "dist/**"
+  requiredPaths:
+    - "actions"
+    - "domain"
+    - "services"
+    - "helpers"
+    - "docs"
+    - "examples"
+
+file_naming_pattern:
+  allowed:
+    - "*.go"
+    - "*.mod"
+    - "*.sum"
+    - "*.yaml"
+    - "*.yml"
+    - "*.json"
+    - "*.md"
+    - "*.xml"
+    - "*.txt"
+    - "Makefile"
+    - ".gitignore"
+    - ".goreleaser.yml"
+    - "LICENSE"
+  disallowed:
+    - "*.env*"
+    - "*.key"
+    - "*.pem"
+    - "*.log"
+    - "*.tmp"
+    - "*~"
+  required:
+    - "go.mod"
+    - "README.md"
+    - ".gitignore"
+    - "main.go"
+    - "flags.go"
+
+ignore:
+  - ".git"
+  - "vendor"
+  - "node_modules"
+  - "bin"
+  - "dist"

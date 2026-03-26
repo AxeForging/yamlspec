@@ -1,0 +1,32 @@
+name: "Multi-document YAML test"
+tags: ["multi-doc"]
+
+describe:
+  - name: "Deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "exist with correct name"
+        expect: metadata.name
+        toEqual: "multi-app"
+
+  - name: "Service"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be NodePort type"
+        expect: spec.type
+        toEqual: "NodePort"
+
+      - should: "expose port 8080"
+        expect: spec.ports[0].port
+        toEqual: 8080
+
+  - name: "ConfigMap"
+    select: 'select(.kind == "ConfigMap")'
+    it:
+      - should: "have DB_HOST set"
+        expect: data.DB_HOST
+        toContain: "postgres"
+
+      - should: "have CACHE_TTL"
+        expect: data.CACHE_TTL
+        toExist: true

@@ -1,0 +1,14 @@
+name: "Failing deployment test"
+tags: ["deployment", "failing"]
+
+describe:
+  - name: "Deployment checks"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 3 replicas"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "not use latest tag"
+        expect: spec.template.spec.containers[0].image
+        toNotEndWith: ":latest"

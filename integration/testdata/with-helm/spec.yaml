@@ -1,0 +1,41 @@
+name: "Helm chart rendering"
+tags: ["helm"]
+
+pre_run:
+  - mkdir -p manifests
+  - helm template my-release chart -f values.yaml > manifests/rendered.yaml
+
+describe:
+  - name: "Deployment from Helm"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have release name"
+        expect: metadata.name
+        toEqual: "my-release"
+
+      - should: "have 3 replicas from override values"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "be in production namespace"
+        expect: metadata.namespace
+        toEqual: "production"
+
+      - should: "use nginx image"
+        expect: spec.template.spec.containers[0].image
+        toEqual: "nginx:1.25.3"
+
+      - should: "have resource limits"
+        expect: spec.template.spec.containers[0].resources.limits.cpu
+        toEqual: "500m"
+
+  - name: "Service from Helm"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be ClusterIP"
+        expect: spec.type
+        toEqual: "ClusterIP"
+
+      - should: "target port 8080"
+        expect: spec.ports[0].targetPort
+        toEqual: 8080

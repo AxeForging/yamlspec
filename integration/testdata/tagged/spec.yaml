@@ -1,0 +1,14 @@
+name: "Tagged test"
+tags: ["staging", "node"]
+
+describe:
+  - name: "Staging deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "be in staging namespace"
+        expect: metadata.namespace
+        toEqual: "staging"
+
+      - should: "use node image"
+        expect: spec.template.spec.containers[0].image
+        toStartWith: "node:"

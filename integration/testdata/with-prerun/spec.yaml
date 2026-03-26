@@ -1,0 +1,22 @@
+name: "Pre-run test"
+tags: ["prerun"]
+
+pre_run:
+  - mkdir -p manifests
+  - cp source.yaml manifests/deployment.yaml
+
+describe:
+  - name: "Generated deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 2 replicas"
+        expect: spec.replicas
+        toEqual: 2
+
+      - should: "be in staging"
+        expect: metadata.namespace
+        toEqual: "staging"
+
+      - should: "use node image"
+        expect: spec.template.spec.containers[0].image
+        toStartWith: "node:"

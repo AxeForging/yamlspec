@@ -1,0 +1,161 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conventional commits format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern="^(feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert)(\(.+\))?(!)?: .+"
+          if ! echo "$PR_TITLE" | grep -qE "$pattern"; then
+            echo "::error::PR title must follow Conventional Commits format"
+            echo ""
+            echo "Expected: <type>[optional scope][!]: <description>"
+            echo "Types: feat|fix|docs|style|refactor|test|chore|build|ci|perf|revert"
+            echo ""
+            echo "Examples:"
+            echo "  feat: add JUnit output format"
+            echo "  fix(assertions): handle nil values in toEqual"
+            exit 1
+          fi
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Run tests
+        run: go test ./... -v -race -timeout 120s
+
+      - name: Build
+        run: go build -o yamlspec .
+
+      - name: Vulnerability check
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Build binary
+        run: go build -o yamlspec .
+
+      - name: Test basic validation
+        run: ./yamlspec validate --test-dir integration/testdata --tag service
+
+      - name: Test tag filtering
+        run: |
+          output=$(./yamlspec validate --test-dir integration/testdata --tag staging 2>&1)
+          echo "$output"
+          echo "$output" | grep -q "Tagged test"
+          echo "$output" | grep -qv "Basic deployment test" || true
+
+      - name: Test JSON output
+        run: |
+          ./yamlspec validate --test-dir integration/testdata --tag service --json-output /tmp/results.json
+          python3 -m json.tool /tmp/results.json > /dev/null
+
+      - name: Test JUnit output
+        run: |
+          ./yamlspec validate --test-dir integration/testdata --tag service --junit-output /tmp/results.xml
+          head -5 /tmp/results.xml | grep -q "testsuites"
+
+      - name: Test exit code on failure
+        run: |
+          if ./yamlspec validate --test-dir integration/testdata --tag failing 2>&1; then
+            echo "Expected non-zero exit code"
+            exit 1
+          fi
+
+      - name: Test init command
+        run: |
+          ./yamlspec init my-new-test --test-dir /tmp/test-specs
+          ./yamlspec validate --test-dir /tmp/test-specs
+
+      - name: Test list command
+        run: |
+          ./yamlspec list --test-dir integration/testdata
+          ./yamlspec list --test-dir integration/testdata --tags
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install Kustomize
+        run: |
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.6.0/kustomize_v5.6.0_linux_amd64.tar.gz" | tar xz
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Test Helm pre_run rendering
+        run: |
+          ./yamlspec validate --test-dir integration/testdata --tag helm
+          rm -rf integration/testdata/with-helm/manifests
+
+      - name: Test Kustomize pre_run rendering
+        run: |
+          ./yamlspec validate --test-dir integration/testdata --tag kustomize
+          rm -rf integration/testdata/with-kustomize/manifests
+
+      - name: Test all engines together with all output formats
+        run: |
+          ./yamlspec validate --test-dir integration/testdata \
+            --json-output /tmp/all-results.json \
+            --emd-output /tmp/all-results.emd.md \
+            --junit-output /tmp/all-results.xml \
+            --markdown-output /tmp/all-results.md \
+            || true
+          python3 -m json.tool /tmp/all-results.json > /dev/null
+          grep -q "testsuites" /tmp/all-results.xml
+          grep -q "<details" /tmp/all-results.emd.md
+          rm -rf integration/testdata/with-helm/manifests integration/testdata/with-kustomize/manifests integration/testdata/with-prerun/manifests
+
+  review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: AxeForging/reviewforge@main
+        with:
+          provider: gemini
+          model: gemini-2.5-flash
+          show_token_usage: true
+          incremental: false
+          review_rules: concise
+
+  validate:
+    name: Structure Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: AxeForging/structlint@main

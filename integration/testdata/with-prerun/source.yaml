@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prerun-app
+  namespace: staging
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: app
+          image: "node:20-alpine"
+          ports:
+            - containerPort: 3000

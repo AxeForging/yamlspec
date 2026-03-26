@@ -1,0 +1,193 @@
+name: yamlspec
+
+on:
+  workflow_call:
+    inputs:
+      test-dir:
+        description: "Directory containing test specs"
+        required: false
+        default: "tests"
+        type: string
+      tag:
+        description: "Filter specs by tag (empty = all)"
+        required: false
+        default: ""
+        type: string
+      yamlspec-version:
+        description: "yamlspec version to install (e.g., v1.0.0, latest)"
+        required: false
+        default: "latest"
+        type: string
+      fail-fast:
+        description: "Stop on first failure"
+        required: false
+        default: false
+        type: boolean
+      workers:
+        description: "Number of parallel workers"
+        required: false
+        default: 1
+        type: number
+      install-helm:
+        description: "Install Helm (for pre_run commands)"
+        required: false
+        default: false
+        type: boolean
+      helm-version:
+        description: "Helm version to install"
+        required: false
+        default: "latest"
+        type: string
+      install-kustomize:
+        description: "Install Kustomize (for pre_run commands)"
+        required: false
+        default: false
+        type: boolean
+      kustomize-version:
+        description: "Kustomize version to install"
+        required: false
+        default: "v5.6.0"
+        type: string
+      comment-on-pr:
+        description: "Post results as PR comment"
+        required: false
+        default: true
+        type: boolean
+      extra-args:
+        description: "Additional yamlspec arguments"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  yamlspec:
+    name: yamlspec
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Install tools ---
+
+      - name: Install yamlspec
+        run: |
+          VERSION="${{ inputs.yamlspec-version }}"
+          if [ "$VERSION" = "latest" ]; then
+            DOWNLOAD_URL=$(curl -s https://api.github.com/repos/AxeForging/yamlspec/releases/latest \
+              | grep "browser_download_url.*linux-amd64.tar.gz" \
+              | cut -d '"' -f 4)
+          else
+            DOWNLOAD_URL="https://github.com/AxeForging/yamlspec/releases/download/${VERSION}/yamlspec-linux-amd64.tar.gz"
+          fi
+          curl -sSL "$DOWNLOAD_URL" | tar xz
+          sudo mv yamlspec /usr/local/bin/
+          yamlspec version
+
+      - name: Install Helm
+        if: inputs.install-helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ inputs.helm-version }}
+
+      - name: Install Kustomize
+        if: inputs.install-kustomize
+        run: |
+          VERSION="${{ inputs.kustomize-version }}"
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${VERSION}/kustomize_${VERSION}_linux_amd64.tar.gz" | tar xz
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
+      # --- Run tests ---
+
+      - name: Run yamlspec
+        id: yamlspec
+        run: |
+          ARGS="validate --test-dir ${{ inputs.test-dir }}"
+
+          if [ -n "${{ inputs.tag }}" ]; then
+            ARGS="$ARGS --tag ${{ inputs.tag }}"
+          fi
+
+          if [ "${{ inputs.fail-fast }}" = "true" ]; then
+            ARGS="$ARGS --fail-fast"
+          fi
+
+          if [ "${{ inputs.workers }}" != "1" ]; then
+            ARGS="$ARGS --workers ${{ inputs.workers }}"
+          fi
+
+          ARGS="$ARGS --json-output yamlspec-results.json"
+          ARGS="$ARGS --emd-output yamlspec-results.emd.md"
+          ARGS="$ARGS --junit-output yamlspec-results.xml"
+          ARGS="$ARGS ${{ inputs.extra-args }}"
+
+          echo "Running: yamlspec $ARGS"
+          yamlspec $ARGS && echo "success=true" >> "$GITHUB_OUTPUT" || echo "success=false" >> "$GITHUB_OUTPUT"
+
+      # --- Upload artifacts ---
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yamlspec-results
+          path: |
+            yamlspec-results.json
+            yamlspec-results.emd.md
+            yamlspec-results.xml
+
+      # --- PR comment ---
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request' && inputs.comment-on-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let body;
+            try {
+              body = fs.readFileSync('yamlspec-results.emd.md', 'utf8');
+            } catch (e) {
+              body = '## yamlspec\n\n:warning: Test results file not found. Check the workflow logs.';
+            }
+
+            // Find and update existing comment, or create new one
+            const marker = '<!-- yamlspec-results -->';
+            body = `${marker}\n${body}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      # --- Fail the job if tests failed ---
+
+      - name: Check results
+        if: always()
+        run: |
+          if [ "${{ steps.yamlspec.outputs.success }}" != "true" ]; then
+            echo "::error::yamlspec tests failed"
+            exit 1
+          fi

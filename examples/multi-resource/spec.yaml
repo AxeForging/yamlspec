@@ -1,0 +1,71 @@
+name: "API server full stack"
+tags: ["deployment", "service", "hpa", "pdb", "backend"]
+
+describe:
+  - name: "Deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have at least 3 replicas"
+        expect: spec.replicas
+        toBeGreaterOrEqual: 3
+
+      - should: "be in backend namespace"
+        expect: metadata.namespace
+        toEqual: "backend"
+
+      - should: "expose HTTP and metrics ports"
+        expect: spec.template.spec.containers[0].ports
+        toHaveMinLength: 2
+
+      - should: "have DB_HOST environment variable"
+        expect: spec.template.spec.containers[0].env[0].name
+        toEqual: "DB_HOST"
+
+      - should: "have resource limits and requests"
+        expect: spec.template.spec.containers[0].resources.limits
+        toExist: true
+
+  - name: "Service"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be ClusterIP"
+        expect: spec.type
+        toEqual: "ClusterIP"
+
+      - should: "have HTTP and metrics ports"
+        expect: spec.ports
+        toHaveLength: 2
+
+      - should: "select the API server pods"
+        expect: spec.selector.app
+        toEqual: "api-server"
+
+  - name: "HorizontalPodAutoscaler"
+    select: 'select(.kind == "HorizontalPodAutoscaler")'
+    it:
+      - should: "target the API server deployment"
+        expect: spec.scaleTargetRef.name
+        toEqual: "api-server"
+
+      - should: "have min replicas >= 3"
+        expect: spec.minReplicas
+        toBeGreaterOrEqual: 3
+
+      - should: "have max replicas <= 20"
+        expect: spec.maxReplicas
+        toBeLessOrEqual: 20
+
+      - should: "scale on CPU utilization"
+        expect: spec.metrics[0].resource.name
+        toEqual: "cpu"
+
+  - name: "PodDisruptionBudget"
+    select: 'select(.kind == "PodDisruptionBudget")'
+    it:
+      - should: "require at least 2 pods available"
+        expect: spec.minAvailable
+        toBeGreaterOrEqual: 2
+
+      - should: "match the API server pods"
+        expect: spec.selector.matchLabels.app
+        toEqual: "api-server"
