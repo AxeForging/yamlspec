@@ -50,8 +50,8 @@ func (f *ConsoleFormatter) Format(result *domain.SuiteResult) ([]byte, error) {
 			b.WriteString(f.styled("Failures:", colorRed, colorBold))
 			b.WriteString("\n\n")
 			for i, fail := range failures {
-				b.WriteString(fmt.Sprintf("  %s%d) %s%s\n", colorRed, i+1, fail.path, colorReset))
-				b.WriteString(fmt.Sprintf("     %s%s%s\n", colorDim, fail.error, colorReset))
+				fmt.Fprintf(&b, "  %s%d) %s%s\n", colorRed, i+1, fail.path, colorReset)
+				fmt.Fprintf(&b, "     %s%s%s\n", colorDim, fail.error, colorReset)
 				b.WriteString("\n")
 			}
 		}
@@ -66,10 +66,10 @@ func (f *ConsoleFormatter) Format(result *domain.SuiteResult) ([]byte, error) {
 
 func (f *ConsoleFormatter) writeSpec(b *strings.Builder, spec *domain.SpecResult) {
 	icon := f.statusIcon(spec.Status)
-	b.WriteString(fmt.Sprintf("  %s %s\n", icon, f.styled(spec.Name, colorBold)))
+	fmt.Fprintf(b, "  %s %s\n", icon, f.styled(spec.Name, colorBold))
 
 	if spec.Error != "" {
-		b.WriteString(fmt.Sprintf("    %s%s%s\n", colorRed, spec.Error, colorReset))
+		fmt.Fprintf(b, "    %s%s%s\n", colorRed, spec.Error, colorReset)
 		return
 	}
 
@@ -81,18 +81,18 @@ func (f *ConsoleFormatter) writeSpec(b *strings.Builder, spec *domain.SpecResult
 }
 
 func (f *ConsoleFormatter) writeDescribe(b *strings.Builder, desc *domain.DescribeResult, specName string) {
-	b.WriteString(fmt.Sprintf("    %s\n", desc.Name))
+	fmt.Fprintf(b, "    %s\n", desc.Name)
 
 	if desc.Select != "" {
-		b.WriteString(fmt.Sprintf("      %s[select: %s]%s\n", colorCyan, desc.Select, colorReset))
+		fmt.Fprintf(b, "      %s[select: %s]%s\n", colorCyan, desc.Select, colorReset)
 	}
 
 	for _, ar := range desc.Assertions {
 		icon := f.statusIcon(ar.Status)
-		b.WriteString(fmt.Sprintf("      %s %s\n", icon, ar.Should))
+		fmt.Fprintf(b, "      %s %s\n", icon, ar.Should)
 
 		if ar.Status == domain.StatusFailed && ar.Error != "" {
-			b.WriteString(fmt.Sprintf("        %s%s%s\n", colorDim+colorRed, ar.Error, colorReset))
+			fmt.Fprintf(b, "        %s%s%s\n", colorDim+colorRed, ar.Error, colorReset)
 		}
 	}
 }

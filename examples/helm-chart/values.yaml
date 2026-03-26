@@ -1,0 +1,10 @@
+namespace: production
+replicas: 3
+port: 8080
+image:
+  repository: nginx
+  tag: "1.25.3"
+resources:
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
