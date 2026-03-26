@@ -1,0 +1,42 @@
+name: "Helm chart validation"
+tags: ["helm", "deployment"]
+
+pre_run:
+  - mkdir -p manifests
+  - helm template my-release chart -f values.yaml > manifests/rendered.yaml
+
+describe:
+  - name: "Deployment from Helm"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "use release name"
+        expect: metadata.name
+        toEqual: "my-release"
+
+      - should: "have 3 replicas from values override"
+        expect: spec.replicas
+        toEqual: 3
+
+      - should: "be in production namespace"
+        expect: metadata.namespace
+        toEqual: "production"
+
+      - should: "use pinned nginx image"
+        expect: spec.template.spec.containers[0].image
+        toEqual: "nginx:1.25.3"
+        toNotEndWith: ":latest"
+
+      - should: "have resource limits"
+        expect: spec.template.spec.containers[0].resources.limits.cpu
+        toEqual: "500m"
+
+  - name: "Service from Helm"
+    select: 'select(.kind == "Service")'
+    it:
+      - should: "be ClusterIP"
+        expect: spec.type
+        toEqual: "ClusterIP"
+
+      - should: "target the correct port"
+        expect: spec.ports[0].targetPort
+        toEqual: 8080

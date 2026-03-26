@@ -2,6 +2,16 @@
 
 YAML test framework with RSpec-like assertions. Validate any YAML manifests — Kubernetes, Helm, Kustomize, or plain files — with a clean, readable syntax.
 
+## Why yamlspec?
+
+- **RSpec-like syntax** — `describe`/`it`/`should` vocabulary developers already know
+- **20+ assertion operators** — equality, comparisons, strings, regex, existence, arrays, sets
+- **Engine agnostic** — test plain YAML, Helm charts, Kustomize overlays, or anything that outputs YAML
+- **6 output formats** — console, JSON, YAML, Markdown, enriched Markdown (GitHub PRs), JUnit XML
+- **Reusable CI workflow** — one-line GitHub Actions setup with PR commenting
+- **Zero YAML dependencies** — no Helm or Kustomize libraries; rendering happens via `pre_run` shell commands
+- **5 direct Go dependencies** — minimal, fast, easy to build
+
 ## Install
 
 ```bash
@@ -27,6 +37,73 @@ yamlspec validate --tag deployment
 
 # Multiple output formats
 yamlspec validate --json-output results.json --junit-output results.xml
+
+# Parallel execution
+yamlspec validate --workers 4
+```
+
+## Usage with Helm Charts
+
+Use `pre_run` to render templates before validation:
+
+```yaml
+# tests/production/spec.yaml
+name: "Production values"
+tags: ["production", "helm"]
+
+pre_run:
+  - helm template my-app ../../ -f values.yaml > manifests/rendered.yaml
+
+describe:
+  - name: "Deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 3+ replicas for HA"
+        expect: spec.replicas
+        toBeGreaterOrEqual: 3
+
+      - should: "not use latest tag"
+        expect: spec.template.spec.containers[0].image
+        toNotEndWith: ":latest"
+
+      - should: "have resource limits"
+        expect: spec.template.spec.containers[0].resources.limits
+        toExist: true
+```
+
+## Usage with Kustomize
+
+```yaml
+# tests/staging/spec.yaml
+name: "Staging overlay"
+tags: ["staging", "kustomize"]
+
+pre_run:
+  - kustomize build ../../overlays/staging > manifests/rendered.yaml
+
+describe:
+  - name: "Deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "be in staging namespace"
+        expect: metadata.namespace
+        toEqual: "staging"
+
+      - should: "have env label"
+        expect: metadata.labels.env
+        toEqual: "staging"
+```
+
+## Usage with Plain Manifests
+
+No `pre_run` needed — just put YAML files in a `manifests/` directory:
+
+```
+tests/my-feature/
+  spec.yaml
+  manifests/
+    deployment.yaml
+    service.yaml
 ```
 
 ## spec.yaml
