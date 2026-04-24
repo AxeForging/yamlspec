@@ -31,6 +31,7 @@ func (a *ValidateAction) Execute(c *cli.Context) error {
 		Tags:           c.StringSlice("tag"),
 		Workers:        c.Int("workers"),
 		FailFast:       c.Bool("fail-fast"),
+		PreRunTimeout:  c.Duration("pre-run-timeout"),
 		Verbose:        c.GlobalBool("verbose"),
 		Quiet:          c.Bool("quiet"),
 		JSONOutput:     c.String("json-output"),
@@ -38,6 +39,11 @@ func (a *ValidateAction) Execute(c *cli.Context) error {
 		MarkdownOutput: c.String("markdown-output"),
 		EMDOutput:      c.String("emd-output"),
 		JUnitOutput:    c.String("junit-output"),
+	}
+
+	if config.FailFast && config.Workers > 1 {
+		return fmt.Errorf("--fail-fast cannot be used with --workers > 1 " +
+			"(parallel workers can't honor ordered short-circuit; pick one)")
 	}
 
 	specs, err := a.discovery.DiscoverSpecs(config.TestDir, config.Tags)

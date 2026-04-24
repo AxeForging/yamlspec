@@ -1,6 +1,10 @@
 package main
 
-import "github.com/urfave/cli"
+import (
+	"time"
+
+	"github.com/urfave/cli"
+)
 
 var (
 	verboseFlag = cli.BoolFlag{
@@ -27,7 +31,12 @@ var (
 	}
 	failFastFlag = cli.BoolFlag{
 		Name:  "fail-fast",
-		Usage: "Stop on first failure",
+		Usage: "Stop on first failure (not compatible with --workers > 1)",
+	}
+	preRunTimeoutFlag = cli.DurationFlag{
+		Name:  "pre-run-timeout",
+		Usage: "Max duration for each pre_run command (e.g. 30s, 2m)",
+		Value: 60 * time.Second,
 	}
 	jsonOutputFlag = cli.StringFlag{
 		Name:  "json-output",

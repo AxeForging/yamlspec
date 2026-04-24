@@ -69,6 +69,12 @@ type Assertion struct {
 	ToHaveMaxLength *int        `yaml:"toHaveMaxLength,omitempty"`
 }
 
+// HasAnyOperator returns true if the assertion has any operator set,
+// including existence/null checks.
+func (a *Assertion) HasAnyOperator() bool {
+	return a.ToExist != nil || a.ToBeNull != nil || a.HasValueOperators()
+}
+
 // HasValueOperators returns true if the assertion has any value-based operators set
 func (a *Assertion) HasValueOperators() bool {
 	return a.ToEqual != nil ||

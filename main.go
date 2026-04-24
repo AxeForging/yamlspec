@@ -50,6 +50,7 @@ func main() {
 				tagFlag,
 				workersFlag,
 				failFastFlag,
+				preRunTimeoutFlag,
 				quietFlag,
 				jsonOutputFlag,
 				yamlOutputFlag,

@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -80,59 +81,72 @@ func (ae *AssertionEngine) evaluateAssertion(assertion *domain.Assertion, resour
 	fieldPath := assertion.Expect
 
 	for _, resource := range resources {
-		fieldValue, exists, err := ae.extractFieldValue(fieldPath, resource)
+		values, err := ae.extractFieldValues(fieldPath, resource)
 		if err != nil {
 			result.Status = domain.StatusError
 			result.Error = fmt.Sprintf("failed to access '%s': %v", fieldPath, err)
 			return result
 		}
 
-		result.Actual = fieldValue
-
-		// Existence checks
-		if assertion.ToExist != nil {
-			if *assertion.ToExist && !exists {
+		// No values produced: the path yielded nothing (missing field, or wildcard
+		// over an empty/missing array). Treat as "does not exist" for a single
+		// virtual value, so toExist / toBeNull semantics still work.
+		if len(values) == 0 {
+			if failed, err := ae.checkSingle(assertion, fieldPath, nil, false); failed {
 				result.Status = domain.StatusFailed
-				result.Error = fmt.Sprintf("expected '%s' to exist", fieldPath)
+				result.Error = err
+				result.Actual = nil
 				return result
 			}
-			if !*assertion.ToExist && exists {
-				result.Status = domain.StatusFailed
-				result.Error = fmt.Sprintf("expected '%s' to not exist, got: %v", fieldPath, fieldValue)
-				return result
-			}
+			continue
 		}
 
-		// Null checks
-		if assertion.ToBeNull != nil {
-			isNull := fieldValue == nil
-			if *assertion.ToBeNull && !isNull {
+		for _, fv := range values {
+			result.Actual = fv.value
+			if failed, err := ae.checkSingle(assertion, fieldPath, fv.value, fv.exists); failed {
 				result.Status = domain.StatusFailed
-				result.Error = fmt.Sprintf("expected '%s' to be null, got: %v", fieldPath, fieldValue)
+				result.Error = err
 				return result
 			}
-			if !*assertion.ToBeNull && isNull {
-				result.Status = domain.StatusFailed
-				result.Error = fmt.Sprintf("expected '%s' to not be null", fieldPath)
-				return result
-			}
-		}
-
-		// If field doesn't exist and we have value operators, fail
-		if !exists && assertion.HasValueOperators() {
-			result.Status = domain.StatusFailed
-			result.Error = fmt.Sprintf("'%s' does not exist (cannot evaluate assertion)", fieldPath)
-			return result
-		}
-
-		if err := ae.evaluateOperators(assertion, fieldPath, fieldValue); err != nil {
-			result.Status = domain.StatusFailed
-			result.Error = err.Error()
-			return result
 		}
 	}
 
 	return result
+}
+
+// checkSingle evaluates all operators against a single (value, exists) pair.
+// Returns (true, errorMessage) if the assertion fails, (false, "") if it passes.
+func (ae *AssertionEngine) checkSingle(assertion *domain.Assertion, fieldPath string, value interface{}, exists bool) (bool, string) {
+	if assertion.ToExist != nil {
+		if *assertion.ToExist && !exists {
+			return true, fmt.Sprintf("expected '%s' to exist", fieldPath)
+		}
+		if !*assertion.ToExist && exists {
+			return true, fmt.Sprintf("expected '%s' to not exist, got: %v", fieldPath, value)
+		}
+	}
+
+	if assertion.ToBeNull != nil {
+		isNull := exists && value == nil
+		if *assertion.ToBeNull && !isNull {
+			if !exists {
+				return true, fmt.Sprintf("expected '%s' to be null, but field does not exist", fieldPath)
+			}
+			return true, fmt.Sprintf("expected '%s' to be null, got: %v", fieldPath, value)
+		}
+		if !*assertion.ToBeNull && isNull {
+			return true, fmt.Sprintf("expected '%s' to not be null", fieldPath)
+		}
+	}
+
+	if !exists && assertion.HasValueOperators() {
+		return true, fmt.Sprintf("'%s' does not exist (cannot evaluate assertion)", fieldPath)
+	}
+
+	if err := ae.evaluateOperators(assertion, fieldPath, value); err != nil {
+		return true, err.Error()
+	}
+	return false, ""
 }
 
 // evaluateOperators checks all operators specified on an assertion
@@ -375,35 +389,208 @@ func (ae *AssertionEngine) applySelector(selector string, manifests []interface{
 	return results, nil
 }
 
-// extractFieldValue extracts a value from a resource using a field path
-func (ae *AssertionEngine) extractFieldValue(fieldPath string, resource interface{}) (interface{}, bool, error) {
+// fieldValue is one result of extracting a path from a resource.
+// For wildcard paths (e.g. containers[*].image) extractFieldValues returns
+// one entry per matching element; for simple paths it returns exactly one
+// entry when the path produces a result, or nothing when it doesn't.
+type fieldValue struct {
+	value  interface{}
+	exists bool
+}
+
+// extractFieldValues pulls all values at the given path from a resource.
+// It distinguishes "missing key" from "present but null" by probing the
+// parent object with has() in a separate gojq query.
+func (ae *AssertionEngine) extractFieldValues(fieldPath string, resource interface{}) ([]fieldValue, error) {
 	jqPath := ae.fieldPathToJQ(fieldPath)
 
 	query, err := gojq.Parse(jqPath)
 	if err != nil {
-		return nil, false, fmt.Errorf("invalid field path: %w", err)
+		return nil, fmt.Errorf("invalid field path: %w", err)
 	}
 
+	var raw []interface{}
 	iter := query.Run(resource)
-	v, ok := iter.Next()
-	if !ok {
-		return nil, false, nil
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if e, isErr := v.(error); isErr {
+			// gojq path errors (e.g. indexing a number) mean the path cannot
+			// be reached — treat as producing no results, let existence handle it.
+			_ = e
+			continue
+		}
+		raw = append(raw, v)
 	}
 
-	if _, ok := v.(error); ok {
-		return nil, false, nil
+	// Wildcard path: each produced element is considered to exist.
+	if isWildcardPath(jqPath) {
+		results := make([]fieldValue, 0, len(raw))
+		for _, v := range raw {
+			results = append(results, fieldValue{value: v, exists: true})
+		}
+		return results, nil
 	}
 
-	return v, v != nil, nil
+	// Simple path: there should be at most one result. Probe parent for
+	// real existence so present-null is distinguished from missing.
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	exists, err := ae.probeExistence(jqPath, resource)
+	if err != nil {
+		return nil, err
+	}
+	return []fieldValue{{value: raw[0], exists: exists}}, nil
 }
 
-// fieldPathToJQ converts a field path to JQ syntax
-func (ae *AssertionEngine) fieldPathToJQ(fieldPath string) string {
-	if strings.HasPrefix(fieldPath, ".") {
-		return fieldPath
+// probeExistence runs a companion query against the parent of the path
+// that returns true iff the final key is actually present on the parent.
+// Falls back to (value != nil) if the path can't be split.
+func (ae *AssertionEngine) probeExistence(jqPath string, resource interface{}) (bool, error) {
+	parent, probe, ok := splitLastSegment(jqPath)
+	if !ok {
+		// Fallback: evaluate the original path and treat any non-nil as existing.
+		q, err := gojq.Parse(jqPath)
+		if err != nil {
+			return false, nil
+		}
+		iter := q.Run(resource)
+		if v, ok := iter.Next(); ok {
+			if _, isErr := v.(error); isErr {
+				return false, nil
+			}
+			return v != nil, nil
+		}
+		return false, nil
 	}
+
+	probeExpr := parent + " | " + probe
+	q, err := gojq.Parse(probeExpr)
+	if err != nil {
+		return false, nil
+	}
+	iter := q.Run(resource)
+	v, ok := iter.Next()
+	if !ok {
+		return false, nil
+	}
+	if _, isErr := v.(error); isErr {
+		return false, nil
+	}
+	b, _ := v.(bool)
+	return b, nil
+}
+
+// fieldPathToJQ converts a field path to JQ syntax. Normalizes [*] (a
+// yamlspec-user convenience) to [] (jq's array iteration) regardless of
+// whether the path already has a leading dot.
+func (ae *AssertionEngine) fieldPathToJQ(fieldPath string) string {
 	path := strings.ReplaceAll(fieldPath, "[*]", "[]")
+	if strings.HasPrefix(path, ".") {
+		return path
+	}
 	return "." + path
+}
+
+// isWildcardPath returns true if a jq path contains an unconstrained array
+// iteration that can produce multiple results.
+func isWildcardPath(jqPath string) bool {
+	inQuote := byte(0)
+	for i := 0; i < len(jqPath); i++ {
+		c := jqPath[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		if c == '"' || c == '\'' {
+			inQuote = c
+			continue
+		}
+		if c == '[' && i+1 < len(jqPath) && jqPath[i+1] == ']' {
+			return true
+		}
+	}
+	return false
+}
+
+// splitLastSegment splits a simple jq path into (parentExpr, probeExpr).
+// probeExpr is a jq fragment that, when piped to parentExpr, returns true
+// iff the final segment is present on that parent.
+// Returns ok=false when the path is a wildcard path, the root (.), or
+// can't be parsed — callers must fall back to value-based existence.
+func splitLastSegment(jqPath string) (string, string, bool) {
+	if jqPath == "" || jqPath == "." {
+		return "", "", false
+	}
+	if isWildcardPath(jqPath) {
+		return "", "", false
+	}
+
+	p := jqPath
+	if p[0] == '.' {
+		p = p[1:]
+	}
+	if p == "" {
+		return "", "", false
+	}
+
+	// Walk to find the last top-level boundary ('.' or '[').
+	inQuote := byte(0)
+	lastBoundary := -1
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		if c == '"' || c == '\'' {
+			inQuote = c
+			continue
+		}
+		if c == '.' || c == '[' {
+			lastBoundary = i
+		}
+	}
+
+	var parent, last string
+	if lastBoundary == -1 {
+		parent = "."
+		last = "." + p
+	} else {
+		if lastBoundary == 0 {
+			parent = "."
+		} else {
+			parent = "." + p[:lastBoundary]
+		}
+		last = p[lastBoundary:]
+	}
+
+	if strings.HasPrefix(last, ".") {
+		key := strings.TrimPrefix(last, ".")
+		if key == "" {
+			return "", "", false
+		}
+		return parent, fmt.Sprintf(`(type == "object" and has(%q))`, key), true
+	}
+
+	if strings.HasPrefix(last, "[") && strings.HasSuffix(last, "]") {
+		inner := last[1 : len(last)-1]
+		if len(inner) >= 2 && (inner[0] == '"' || inner[0] == '\'') && inner[0] == inner[len(inner)-1] {
+			key := inner[1 : len(inner)-1]
+			return parent, fmt.Sprintf(`(type == "object" and has(%q))`, key), true
+		}
+		if idx, err := strconv.Atoi(inner); err == nil {
+			return parent, fmt.Sprintf(`(type == "array" and length > %d)`, idx), true
+		}
+	}
+	return "", "", false
 }
 
 // valuesEqual compares two values for equality with type coercion
@@ -441,22 +628,23 @@ func (ae *AssertionEngine) toFloat64(v interface{}) (float64, error) {
 	}
 }
 
-// ParseManifests parses multi-document YAML into a slice of interfaces
+// ParseManifests parses multi-document YAML into a slice of interfaces.
+// Uses a real YAML decoder rather than splitting on "---" so that "---"
+// appearing inside literal blocks, comments, or strings is not mistaken
+// for a document separator.
 func ParseManifests(yamlContent string) ([]interface{}, error) {
+	decoder := yaml.NewDecoder(strings.NewReader(yamlContent))
+
 	var manifests []interface{}
-
-	documents := strings.Split(yamlContent, "---")
-	for _, doc := range documents {
-		doc = strings.TrimSpace(doc)
-		if doc == "" || doc == "null" {
-			continue
-		}
-
+	for {
 		var manifest interface{}
-		if err := yaml.Unmarshal([]byte(doc), &manifest); err != nil {
+		err := decoder.Decode(&manifest)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
 			return nil, fmt.Errorf("failed to parse YAML: %w", err)
 		}
-
 		if manifest != nil {
 			manifests = append(manifests, manifest)
 		}
