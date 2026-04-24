@@ -32,7 +32,7 @@ func (rs *RunnerService) RunAll(ctx context.Context, specs []DiscoveredSpec, con
 
 	if config.Workers <= 1 {
 		for _, spec := range specs {
-			sr := rs.RunOne(ctx, spec)
+			sr := rs.RunOne(ctx, spec, config)
 			result.Specs = append(result.Specs, *sr)
 
 			if config.FailFast && sr.Status == domain.StatusFailed {
@@ -48,7 +48,7 @@ func (rs *RunnerService) RunAll(ctx context.Context, specs []DiscoveredSpec, con
 }
 
 // RunOne executes a single spec
-func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec) *domain.SpecResult {
+func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec, config *domain.Config) *domain.SpecResult {
 	start := time.Now()
 	result := &domain.SpecResult{
 		Name:   spec.Spec.Name,
@@ -58,7 +58,7 @@ func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec) *domai
 
 	// Execute pre_run commands
 	for _, cmd := range spec.Spec.PreRun {
-		if err := rs.execPreRun(ctx, cmd, spec.Dir); err != nil {
+		if err := rs.execPreRun(ctx, cmd, spec.Dir, config.PreRunTimeout); err != nil {
 			result.Status = domain.StatusError
 			result.Error = fmt.Sprintf("pre_run failed: %v", err)
 			result.Duration = time.Since(start)
@@ -109,7 +109,7 @@ func (rs *RunnerService) runParallel(ctx context.Context, specs []DiscoveredSpec
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			sr := rs.RunOne(ctx, s)
+			sr := rs.RunOne(ctx, s, config)
 			results[idx] = *sr
 		}(i, spec)
 	}
@@ -118,8 +118,14 @@ func (rs *RunnerService) runParallel(ctx context.Context, specs []DiscoveredSpec
 	return results
 }
 
-func (rs *RunnerService) execPreRun(ctx context.Context, command, dir string) error {
-	helpers.Log.Debug().Str("cmd", command).Str("dir", dir).Msg("executing pre_run")
+func (rs *RunnerService) execPreRun(ctx context.Context, command, dir string, timeout time.Duration) error {
+	helpers.Log.Debug().Str("cmd", command).Str("dir", dir).Dur("timeout", timeout).Msg("executing pre_run")
+
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	cmd.Dir = dir
@@ -127,6 +133,9 @@ func (rs *RunnerService) execPreRun(ctx context.Context, command, dir string) er
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("command '%s' timed out after %s", command, timeout)
+		}
 		return fmt.Errorf("command '%s' failed: %w", command, err)
 	}
 	return nil

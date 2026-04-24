@@ -486,11 +486,11 @@ func TestEvaluate_MultipleOperators(t *testing.T) {
 
 	t.Run("string with multiple checks", func(t *testing.T) {
 		r := evalSingle(ae, manifests, "Deployment", domain.Assertion{
-			Should:      "match constraints",
-			Expect:      "spec.template.spec.containers[0].image",
-			ToStartWith: "nginx:",
+			Should:       "match constraints",
+			Expect:       "spec.template.spec.containers[0].image",
+			ToStartWith:  "nginx:",
 			ToNotEndWith: ":latest",
-			ToContain:   "1.25",
+			ToContain:    "1.25",
 		})
 		assertStatus(t, r.Status, domain.StatusPassed)
 	})
@@ -525,6 +525,122 @@ func TestParseManifests(t *testing.T) {
 		if len(m) != 1 {
 			t.Fatalf("expected 1 manifest, got %d", len(m))
 		}
+	})
+
+	t.Run("literal block containing --- is not split", func(t *testing.T) {
+		// A ConfigMap value that literally contains "---" must stay inside
+		// the single document, not create phantom ones.
+		m, err := ParseManifests(`kind: ConfigMap
+data:
+  script: |
+    #!/bin/sh
+    cat <<EOF
+    ---
+    line after dashes
+    EOF
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m) != 1 {
+			t.Fatalf("expected 1 manifest (literal block shouldn't split), got %d", len(m))
+		}
+	})
+}
+
+// Null/missing distinction — the old extractFieldValue conflated "field is
+// missing" with "field is explicitly null", breaking both toExist and toBeNull.
+func TestEvaluate_NullVsMissing(t *testing.T) {
+	ae := NewAssertionEngine()
+	manifests, err := ParseManifests(`
+kind: Pod
+metadata:
+  name: p
+spec:
+  nullField: null
+  # missingField is intentionally absent
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("toExist true passes for explicitly-null field", func(t *testing.T) {
+		r := evalSingle(ae, manifests, "Pod", domain.Assertion{
+			Should: "present", Expect: "spec.nullField", ToExist: ptr(true),
+		})
+		assertStatus(t, r.Status, domain.StatusPassed)
+	})
+
+	t.Run("toExist true fails for missing field", func(t *testing.T) {
+		r := evalSingle(ae, manifests, "Pod", domain.Assertion{
+			Should: "present", Expect: "spec.missingField", ToExist: ptr(true),
+		})
+		assertStatus(t, r.Status, domain.StatusFailed)
+	})
+
+	t.Run("toBeNull true passes for explicitly-null field", func(t *testing.T) {
+		r := evalSingle(ae, manifests, "Pod", domain.Assertion{
+			Should: "be null", Expect: "spec.nullField", ToBeNull: ptr(true),
+		})
+		assertStatus(t, r.Status, domain.StatusPassed)
+	})
+
+	t.Run("toBeNull true fails for missing field", func(t *testing.T) {
+		// A missing field is NOT null — it's absent. This was the original bug.
+		r := evalSingle(ae, manifests, "Pod", domain.Assertion{
+			Should: "be null", Expect: "spec.missingField", ToBeNull: ptr(true),
+		})
+		assertStatus(t, r.Status, domain.StatusFailed)
+	})
+}
+
+// Wildcard [*] expansion — the old extractFieldValue called iter.Next() once,
+// so `containers[*].image` only checked the first container.
+func TestEvaluate_WildcardChecksAllResults(t *testing.T) {
+	ae := NewAssertionEngine()
+	manifests, err := ParseManifests(`
+kind: Deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: first
+          image: "registry.io/app:v1.0"
+        - name: second
+          image: "registry.io/sidecar:latest"
+        - name: third
+          image: "registry.io/worker:v2.0"
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("fails when a non-first container violates", func(t *testing.T) {
+		// first container is fine (v1.0), second ends with :latest — must fail.
+		r := evalSingle(ae, manifests, "Deployment", domain.Assertion{
+			Should:       "no latest tags anywhere",
+			Expect:       "spec.template.spec.containers[*].image",
+			ToNotEndWith: ":latest",
+		})
+		assertStatus(t, r.Status, domain.StatusFailed)
+	})
+
+	t.Run("passes when all containers satisfy", func(t *testing.T) {
+		r := evalSingle(ae, manifests, "Deployment", domain.Assertion{
+			Should:      "all from registry",
+			Expect:      "spec.template.spec.containers[*].image",
+			ToStartWith: "registry.io/",
+		})
+		assertStatus(t, r.Status, domain.StatusPassed)
+	})
+
+	t.Run("leading-dot wildcard form", func(t *testing.T) {
+		r := evalSingle(ae, manifests, "Deployment", domain.Assertion{
+			Should:       "all from registry",
+			Expect:       ".spec.template.spec.containers[*].image",
+			ToNotEndWith: ":latest",
+		})
+		assertStatus(t, r.Status, domain.StatusFailed)
 	})
 }
 

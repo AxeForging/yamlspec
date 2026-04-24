@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/AxeForging/yamlspec/services"
@@ -71,10 +72,16 @@ func (a *ListAction) listTags(testDir string) error {
 		return nil
 	}
 
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
 	fmt.Printf("%-30s %s\n", "TAG", "SPECS")
 	fmt.Printf("%-30s %s\n", strings.Repeat("-", 28), strings.Repeat("-", 8))
-	for tag, count := range tagSet {
-		fmt.Printf("%-30s %d\n", tag, count)
+	for _, tag := range tags {
+		fmt.Printf("%-30s %d\n", tag, tagSet[tag])
 	}
 
 	return nil

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func repoRoot(t *testing.T) string {
@@ -957,5 +958,67 @@ func TestE2E_Help(t *testing.T) {
 	}
 	if !strings.Contains(output, "init") {
 		t.Error("expected 'init' command in help")
+	}
+}
+
+// --- Correctness hardening ---
+
+func TestE2E_FailFastWithWorkersRejected(t *testing.T) {
+	bin := buildBinary(t)
+
+	output, exitCode := run(t, bin, "validate",
+		"--test-dir", "integration/testdata",
+		"--fail-fast", "--workers", "4",
+	)
+
+	if exitCode == 0 {
+		t.Errorf("expected non-zero exit when combining --fail-fast and --workers>1, got 0\n%s", output)
+	}
+	if !strings.Contains(output, "fail-fast") || !strings.Contains(output, "workers") {
+		t.Errorf("expected error to mention both flags, got:\n%s", output)
+	}
+}
+
+func TestE2E_PreRunTimeout(t *testing.T) {
+	bin := buildBinary(t)
+	tmpDir := t.TempDir()
+	specDir := filepath.Join(tmpDir, "slow-prerun")
+	if err := os.MkdirAll(specDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	spec := `name: "Slow pre-run"
+tags: ["slow"]
+pre_run:
+  - sleep 5
+describe:
+  - name: "never runs"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "placeholder"
+        expect: metadata.name
+        toExist: true
+`
+	if err := os.WriteFile(filepath.Join(specDir, "spec.yaml"), []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// A manifest has to exist for discovery; it won't be reached.
+	if err := os.WriteFile(filepath.Join(specDir, "dep.yaml"), []byte("kind: Deployment\nmetadata:\n  name: foo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	output, exitCode := run(t, bin, "validate", "--test-dir", tmpDir, "--pre-run-timeout", "500ms")
+	elapsed := time.Since(start)
+
+	if exitCode == 0 {
+		t.Error("expected non-zero exit when pre_run times out")
+	}
+	if !strings.Contains(output, "timed out") {
+		t.Errorf("expected 'timed out' in output, got:\n%s", output)
+	}
+	// Should kill at ~500ms, well before the 5s sleep. Allow slack for process
+	// startup on slow CI, but anything past 3s means we didn't actually kill it.
+	if elapsed > 3*time.Second {
+		t.Errorf("pre-run timeout didn't cancel: took %s", elapsed)
 	}
 }

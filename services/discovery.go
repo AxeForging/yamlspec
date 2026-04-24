@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -140,16 +142,59 @@ func (ds *DiscoveryService) parseSpec(path string) (*domain.Spec, error) {
 	}
 
 	var spec domain.Spec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&spec); err != nil {
+		if err == io.EOF {
+			return nil, fmt.Errorf("spec file is empty")
+		}
 		return nil, err
 	}
 
-	// Default name to directory name
 	if spec.Name == "" {
 		spec.Name = filepath.Base(filepath.Dir(path))
 	}
 
+	if err := validateSpec(&spec); err != nil {
+		return nil, err
+	}
+
 	return &spec, nil
+}
+
+// validateSpec ensures the spec is structurally sound.
+// It catches empty describes, missing fields, and assertions with no operators
+// set — all of which would otherwise silently pass.
+func validateSpec(spec *domain.Spec) error {
+	if len(spec.Describe) == 0 {
+		return fmt.Errorf("spec must contain at least one describe block")
+	}
+
+	for di, desc := range spec.Describe {
+		if desc.Name == "" {
+			return fmt.Errorf("describe[%d].name is required", di)
+		}
+		if len(desc.It) == 0 {
+			return fmt.Errorf("describe[%d] (%q).it must contain at least one assertion", di, desc.Name)
+		}
+
+		for ai, assertion := range desc.It {
+			if assertion.Should == "" {
+				return fmt.Errorf("describe[%d] (%q).it[%d].should is required", di, desc.Name, ai)
+			}
+			if assertion.Expect == "" {
+				return fmt.Errorf("describe[%d] (%q).it[%d] (%q).expect is required",
+					di, desc.Name, ai, assertion.Should)
+			}
+			if !assertion.HasAnyOperator() {
+				return fmt.Errorf("describe[%d] (%q).it[%d] (%q) has no assertion operator "+
+					"(add one of toEqual, toExist, toContain, etc.)",
+					di, desc.Name, ai, assertion.Should)
+			}
+		}
+	}
+
+	return nil
 }
 
 // discoverManifests finds YAML files to test in a spec directory
