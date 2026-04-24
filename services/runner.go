@@ -132,6 +132,17 @@ func (rs *RunnerService) execPreRun(ctx context.Context, command, dir string, ti
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	// Put the shell in its own process group so we can SIGKILL the whole
+	// tree on cancel — otherwise grandchildren like `sleep` orphan and may
+	// hold inherited fds, making cmd.Wait() block past the deadline.
+	setProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		return killProcessGroup(cmd)
+	}
+	// After the cancel function fires, don't wait more than 2s for cleanup
+	// before force-closing our end and returning from Wait.
+	cmd.WaitDelay = 2 * time.Second
+
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("command '%s' timed out after %s", command, timeout)
