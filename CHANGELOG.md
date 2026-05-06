@@ -7,33 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- `docs/index.md` documentation landing page with cross-links between docs.
-- `docs/recipes.md` cookbook of common assertion patterns
-  (multi-environment, security baseline, image pinning, label conventions,
-  HPA/PDB invariants, NetworkPolicy, etc.).
-- `docs/troubleshooting.md` with the common authoring/runtime errors and how
-  to read them.
-- `examples/README.md` describing each worked example and the exact command
-  to run it.
-- `CONTRIBUTING.md` covering dev setup, layer conventions, how to add an
-  operator/formatter/command, commit conventions, and the release flow.
-- README field-path quick reference (dotted, `[index]`, `[*]` wildcard,
-  bracket notation, leading-dot JQ form) and cross-links to the docs.
-- GitHub Actions reusable workflow now writes the EMD output to
-  `$GITHUB_STEP_SUMMARY` so results show on the workflow run page, not only
-  as a PR comment.
-- `--github-annotations` output mode (auto-enabled when `GITHUB_ACTIONS=true`)
-  emits `::error file=...,line=...::` lines so failing assertions appear
-  inline in the GitHub "Files changed" diff view.
+## [0.1.0] — 2026-05-06
 
-### Changed
-- README install instructions now reflect that no GitHub release exists yet —
-  use `go install` from source until v0.1.0 is cut.
-
-## [0.1.0] — Initial release
-
-The first usable yamlspec build, including a correctness-hardening pass.
+The first usable yamlspec build, including a correctness-hardening pass and
+the full documentation set.
 
 ### Added
 - RSpec-like `describe`/`it`/`should` test syntax in `spec.yaml`.
@@ -50,6 +27,9 @@ The first usable yamlspec build, including a correctness-hardening pass.
 - Six output formats: console (colored RSpec-style tree), JSON, YAML,
   Markdown, enriched Markdown (collapsible `<details>` for PR comments),
   JUnit XML.
+- `--github-annotations` output mode (auto-enabled when `GITHUB_ACTIONS=true`)
+  emits `::error file=...,line=...::` lines so failing assertions appear
+  inline in the GitHub "Files changed" diff view.
 - Parallel execution via `--workers N`.
 - `--fail-fast` for fast feedback on sequential runs.
 - Configurable `--pre-run-timeout` (default 60s) for `pre_run` shell
@@ -63,17 +43,21 @@ The first usable yamlspec build, including a correctness-hardening pass.
   `sleep`-style children no longer keep the command alive past its deadline.
 - Cross-platform process management (Unix `setpgid` + `kill -PGID`; Windows
   fallback).
-- Reusable GitHub Actions workflow with one-line opt-in via
-  `uses: AxeForging/yamlspec/.github/workflows/reusable.yml@main`. Posts
-  enriched-markdown PR comments and updates them in place on subsequent
-  pushes.
+- Reusable GitHub Actions workflow with one-line opt-in. Posts
+  enriched-markdown PR comments (updated in place on subsequent pushes) and
+  writes the same EMD to `$GITHUB_STEP_SUMMARY` so results show on the
+  workflow run page.
 - `init` command to scaffold new specs.
 - `list` / `list --tags` for spec/tag discovery (deterministic ordering).
 - `ai-help` command emitting a comprehensive reference for AI assistants.
 - Built on Go 1.25.8 (covers the recent stdlib CVE).
+- Documentation: `docs/index.md`, `docs/spec-format.md`, `docs/recipes.md`,
+  `docs/troubleshooting.md`, `docs/reusable-workflow.md`,
+  `examples/README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`.
+- README field-path quick reference, badges, sample output, and demo GIF.
 
 ### Validation
-- 118 tests passing across 6 packages.
+- 120 tests passing across 6 packages.
 - Examples for plain manifests, Helm charts, Kustomize overlays,
   multi-resource specs, and a security baseline.
 
