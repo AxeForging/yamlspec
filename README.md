@@ -9,7 +9,7 @@ YAML test framework with RSpec-like assertions. Validate any YAML manifests — 
 
 ![yamlspec demo](docs/demo.gif)
 
-**Documentation:** [docs index](docs/index.md) · [spec.yaml format](docs/spec-format.md) · [recipes](docs/recipes.md) · [troubleshooting](docs/troubleshooting.md) · [vs other tools](docs/comparison.md) · [CI workflow](docs/reusable-workflow.md)
+**Documentation:** [docs index](docs/index.md) · [spec.yaml format](docs/spec-format.md) · [recipes](docs/recipes.md) · [troubleshooting](docs/troubleshooting.md) · [CI workflow](docs/reusable-workflow.md)
 
 ## Why yamlspec?
 

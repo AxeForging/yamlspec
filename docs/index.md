@@ -13,7 +13,6 @@ If you're new, start with the project [README](../README.md) for install and a
 | [spec-format.md](spec-format.md) | Full `spec.yaml` schema — fields, field-path syntax, all 22 assertion operators, selector examples |
 | [recipes.md](recipes.md) | Cookbook of common patterns: multi-environment Helm values, security policy checks, label conventions, ConfigMap data, image pinning |
 | [troubleshooting.md](troubleshooting.md) | Common failure modes and how to read the error messages |
-| [comparison.md](comparison.md) | Honest comparison vs `helm unittest`, `chart-testing`, `conftest`, `kyverno`, `datree`, `kubeconform` |
 | [reusable-workflow.md](reusable-workflow.md) | GitHub Actions reusable workflow — one-line CI integration with PR comments |
 
 ## Project meta

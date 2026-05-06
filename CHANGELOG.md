@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `docs/index.md` documentation landing page with cross-links between docs.
-- `docs/comparison.md` covering yamlspec vs `helm unittest`, `chart-testing`,
-  `conftest`/OPA, Kyverno, Datree, and `kubeconform`.
 - `docs/recipes.md` cookbook of common assertion patterns
   (multi-environment, security baseline, image pinning, label conventions,
   HPA/PDB invariants, NetworkPolicy, etc.).
