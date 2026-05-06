@@ -7,6 +7,8 @@
 
 YAML test framework with RSpec-like assertions. Validate any YAML manifests — Kubernetes, Helm, Kustomize, or plain files — with a clean, readable syntax.
 
+![yamlspec demo](docs/demo.gif)
+
 **Documentation:** [docs index](docs/index.md) · [spec.yaml format](docs/spec-format.md) · [recipes](docs/recipes.md) · [troubleshooting](docs/troubleshooting.md) · [vs other tools](docs/comparison.md) · [CI workflow](docs/reusable-workflow.md)
 
 ## Why yamlspec?
