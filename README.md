@@ -1,6 +1,13 @@
 # yamlspec
 
+[![CI](https://github.com/AxeForging/yamlspec/actions/workflows/pr.yml/badge.svg)](https://github.com/AxeForging/yamlspec/actions/workflows/pr.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/AxeForging/yamlspec.svg)](https://pkg.go.dev/github.com/AxeForging/yamlspec)
+[![Go Report Card](https://goreportcard.com/badge/github.com/AxeForging/yamlspec)](https://goreportcard.com/report/github.com/AxeForging/yamlspec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 YAML test framework with RSpec-like assertions. Validate any YAML manifests — Kubernetes, Helm, Kustomize, or plain files — with a clean, readable syntax.
+
+**Documentation:** [docs index](docs/index.md) · [spec.yaml format](docs/spec-format.md) · [recipes](docs/recipes.md) · [troubleshooting](docs/troubleshooting.md) · [vs other tools](docs/comparison.md) · [CI workflow](docs/reusable-workflow.md)
 
 ## Why yamlspec?
 
@@ -14,14 +21,27 @@ YAML test framework with RSpec-like assertions. Validate any YAML manifests — 
 
 ## Install
 
-```bash
-# From source
-go install github.com/AxeForging/yamlspec@latest
+No tagged release yet — install from source:
 
-# Or download a release
+```bash
+# Latest commit on main
+go install github.com/AxeForging/yamlspec@main
+
+# Or clone and build
+git clone https://github.com/AxeForging/yamlspec.git
+cd yamlspec
+make install        # builds and installs to /usr/local/bin
+```
+
+Once v0.1.0 is published you'll also be able to use:
+
+```bash
+# Direct download (post-release)
 curl -sSL https://github.com/AxeForging/yamlspec/releases/latest/download/yamlspec-linux-amd64.tar.gz | tar xz
 sudo mv yamlspec /usr/local/bin/
 ```
+
+See [CHANGELOG.md](CHANGELOG.md) for release status.
 
 ## Quick Start
 
@@ -41,6 +61,36 @@ yamlspec validate --json-output results.json --junit-output results.xml
 # Parallel execution
 yamlspec validate --workers 4
 ```
+
+## Sample output
+
+```
+  ✓ Production deployment
+    Deployment configuration
+      [select: select(.kind == "Deployment")]
+      ✓ have 3 replicas
+      ✓ use a pinned image tag
+      ✓ have resource limits
+      ✓ be in production namespace
+
+  ✗ Staging overlay
+    Deployment
+      [select: select(.kind == "Deployment")]
+      ✓ be in staging namespace
+      ✗ have 2 replicas
+
+Failures:
+
+  1) Staging overlay > Deployment > have 2 replicas
+     expected 2, got 1
+
+26 assertions, 25 passed, 1 failed
+Finished in 0.18s
+```
+
+In CI, the same run also produces a JUnit XML, an enriched-Markdown summary
+(rendered as a GitHub PR comment and on the workflow run page), and inline
+`::error file=...,line=...::` annotations against `spec.yaml` lines.
 
 ## Usage with Helm Charts
 
@@ -108,6 +158,8 @@ tests/my-feature/
 
 ## spec.yaml
 
+Full schema reference: [docs/spec-format.md](docs/spec-format.md).
+
 Tests are defined in `spec.yaml` files with an RSpec-like vocabulary:
 
 ```yaml
@@ -149,6 +201,20 @@ tests/
       service.yaml
     values.yaml            # Optional: Helm values for pre_run
 ```
+
+## Field paths
+
+The `expect:` field accepts these syntaxes — mix freely:
+
+```yaml
+expect: spec.replicas                              # dotted path
+expect: spec.template.spec.containers[0].image     # array index
+expect: spec.template.spec.containers[*].image     # wildcard — assertion runs against every element
+expect: metadata.labels["app.kubernetes.io/name"]  # bracket notation for keys with dots/special chars
+expect: .spec.replicas                             # leading dot (JQ-style) also works
+```
+
+Wildcards (`[*]`) iterate every element — useful for "every container must have resource limits" style checks. See [docs/spec-format.md](docs/spec-format.md#field-path-syntax) for the full reference.
 
 ## Assertion Operators
 
@@ -212,12 +278,15 @@ VALIDATE FLAGS:
   --tag, -t             Filter by tag (repeatable)
   --workers, -w         Parallel workers (default: 1)
   --fail-fast           Stop on first failure
+  --pre-run-timeout     Max duration for each pre_run command (default: 60s)
   --quiet, -q           Summary only
   --json-output         JSON output file
   --yaml-output         YAML output file
   --markdown-output     Markdown output file
   --emd-output          Enriched markdown output file
   --junit-output        JUnit XML output file
+  --github-annotations  Emit ::error file=...,line=... for failing assertions
+                        (auto-enabled when GITHUB_ACTIONS=true)
 ```
 
 ## CI/CD — Reusable Workflow
@@ -241,7 +310,13 @@ jobs:
 
 This installs yamlspec, runs your specs, generates JSON/EMD/JUnit artifacts, and posts a collapsible results comment on PRs. See [docs/reusable-workflow.md](docs/reusable-workflow.md) for all options.
 
+## Examples
+
+Five runnable examples live under [`examples/`](examples) — see the [examples README](examples/README.md) for what each demonstrates and the exact command to run it.
+
 ## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick reference:
 
 ```bash
 make build-local    # Build binary
@@ -251,6 +326,8 @@ make test-e2e       # Integration tests
 make lint           # Linter
 make install        # Install to /usr/local/bin
 ```
+
+Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
