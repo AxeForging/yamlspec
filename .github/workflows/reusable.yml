@@ -75,9 +75,7 @@ jobs:
         run: |
           VERSION="${{ inputs.yamlspec-version }}"
           if [ "$VERSION" = "latest" ]; then
-            DOWNLOAD_URL=$(curl -s https://api.github.com/repos/AxeForging/yamlspec/releases/latest \
-              | grep "browser_download_url.*linux-amd64.tar.gz" \
-              | cut -d '"' -f 4)
+            DOWNLOAD_URL="https://github.com/AxeForging/yamlspec/releases/latest/download/yamlspec-linux-amd64.tar.gz"
           else
             DOWNLOAD_URL="https://github.com/AxeForging/yamlspec/releases/download/${VERSION}/yamlspec-linux-amd64.tar.gz"
           fi

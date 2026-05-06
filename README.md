@@ -23,27 +23,28 @@ YAML test framework with RSpec-like assertions. Validate any YAML manifests — 
 
 ## Install
 
-No tagged release yet — install from source:
+```bash
+# Go install (any platform with Go 1.25+)
+go install github.com/AxeForging/yamlspec@latest
+
+# Linux (amd64)
+curl -sSL https://github.com/AxeForging/yamlspec/releases/latest/download/yamlspec-linux-amd64.tar.gz | tar xz
+sudo mv yamlspec /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -sSL https://github.com/AxeForging/yamlspec/releases/latest/download/yamlspec-darwin-arm64.tar.gz | tar xz
+sudo mv yamlspec /usr/local/bin/
+```
+
+Other platforms (linux/arm64, darwin/amd64, windows/{amd64,arm64}) on the [releases page](https://github.com/AxeForging/yamlspec/releases/latest).
+
+### From source
 
 ```bash
-# Latest commit on main
-go install github.com/AxeForging/yamlspec@main
-
-# Or clone and build
 git clone https://github.com/AxeForging/yamlspec.git
 cd yamlspec
 make install        # builds and installs to /usr/local/bin
 ```
-
-Once v0.1.0 is published you'll also be able to use:
-
-```bash
-# Direct download (post-release)
-curl -sSL https://github.com/AxeForging/yamlspec/releases/latest/download/yamlspec-linux-amd64.tar.gz | tar xz
-sudo mv yamlspec /usr/local/bin/
-```
-
-See [CHANGELOG.md](CHANGELOG.md) for release status.
 
 ## Quick Start
 
