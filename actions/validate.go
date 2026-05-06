@@ -27,18 +27,19 @@ func NewValidateAction() *ValidateAction {
 // Execute runs test specs
 func (a *ValidateAction) Execute(c *cli.Context) error {
 	config := &domain.Config{
-		TestDir:        c.String("test-dir"),
-		Tags:           c.StringSlice("tag"),
-		Workers:        c.Int("workers"),
-		FailFast:       c.Bool("fail-fast"),
-		PreRunTimeout:  c.Duration("pre-run-timeout"),
-		Verbose:        c.GlobalBool("verbose"),
-		Quiet:          c.Bool("quiet"),
-		JSONOutput:     c.String("json-output"),
-		YAMLOutput:     c.String("yaml-output"),
-		MarkdownOutput: c.String("markdown-output"),
-		EMDOutput:      c.String("emd-output"),
-		JUnitOutput:    c.String("junit-output"),
+		TestDir:           c.String("test-dir"),
+		Tags:              c.StringSlice("tag"),
+		Workers:           c.Int("workers"),
+		FailFast:          c.Bool("fail-fast"),
+		PreRunTimeout:     c.Duration("pre-run-timeout"),
+		Verbose:           c.GlobalBool("verbose"),
+		Quiet:             c.Bool("quiet"),
+		JSONOutput:        c.String("json-output"),
+		YAMLOutput:        c.String("yaml-output"),
+		MarkdownOutput:    c.String("markdown-output"),
+		EMDOutput:         c.String("emd-output"),
+		JUnitOutput:       c.String("junit-output"),
+		GitHubAnnotations: c.Bool("github-annotations"),
 	}
 
 	if config.FailFast && config.Workers > 1 {
@@ -83,6 +84,16 @@ func (a *ValidateAction) Execute(c *cli.Context) error {
 		}
 		if err := os.WriteFile(path, data, 0644); err != nil {
 			return fmt.Errorf("write '%s': %w", path, err)
+		}
+	}
+
+	// GitHub Actions annotations on stdout — picked up by the runner and
+	// rendered inline in the PR diff view.
+	if config.GitHubAnnotations {
+		gha := services.NewGitHubAnnotationsFormatter()
+		out, err := gha.Format(result)
+		if err == nil && len(out) > 0 {
+			fmt.Print(string(out))
 		}
 	}
 

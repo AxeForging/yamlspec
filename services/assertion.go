@@ -74,8 +74,9 @@ func (ae *AssertionEngine) evaluateDescribe(desc *domain.DescBlock, manifests []
 
 func (ae *AssertionEngine) evaluateAssertion(assertion *domain.Assertion, resources []interface{}) domain.AssertionResult {
 	result := domain.AssertionResult{
-		Should: assertion.Should,
-		Status: domain.StatusPassed,
+		Should:     assertion.Should,
+		Status:     domain.StatusPassed,
+		SourceLine: assertion.SourceLine,
 	}
 
 	fieldPath := assertion.Expect

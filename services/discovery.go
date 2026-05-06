@@ -155,11 +155,87 @@ func (ds *DiscoveryService) parseSpec(path string) (*domain.Spec, error) {
 		spec.Name = filepath.Base(filepath.Dir(path))
 	}
 
+	spec.SourceFile = path
+	if err := annotateSourceLines(&spec, data); err != nil {
+		// Line annotations are best-effort — failure here shouldn't block validation.
+		helpers.Log.Debug().Err(err).Str("path", path).Msg("could not annotate source lines")
+	}
+
 	if err := validateSpec(&spec); err != nil {
 		return nil, err
 	}
 
 	return &spec, nil
+}
+
+// annotateSourceLines re-decodes the YAML as a Node tree and stamps each
+// assertion's SourceLine. Used for emitting GitHub Actions annotations that
+// link back to the right line in spec.yaml.
+func annotateSourceLines(spec *domain.Spec, data []byte) error {
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return err
+	}
+	if len(root.Content) == 0 {
+		return nil
+	}
+	doc := root.Content[0]
+	if doc.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	describeNode := findMapValue(doc, "describe")
+	if describeNode == nil || describeNode.Kind != yaml.SequenceNode {
+		return nil
+	}
+
+	for di, descNode := range describeNode.Content {
+		if di >= len(spec.Describe) || descNode.Kind != yaml.MappingNode {
+			continue
+		}
+		itNode := findMapValue(descNode, "it")
+		if itNode == nil || itNode.Kind != yaml.SequenceNode {
+			continue
+		}
+		for ai, assertNode := range itNode.Content {
+			if ai >= len(spec.Describe[di].It) || assertNode.Kind != yaml.MappingNode {
+				continue
+			}
+			// Prefer the line of `should:` itself; fall back to the mapping's start.
+			line := assertNode.Line
+			if shouldNode := findMapKey(assertNode, "should"); shouldNode != nil {
+				line = shouldNode.Line
+			}
+			spec.Describe[di].It[ai].SourceLine = line
+		}
+	}
+	return nil
+}
+
+// findMapValue returns the value node for the given key in a MappingNode, or nil.
+func findMapValue(m *yaml.Node, key string) *yaml.Node {
+	if m.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i+1]
+		}
+	}
+	return nil
+}
+
+// findMapKey returns the key node for the given key in a MappingNode, or nil.
+func findMapKey(m *yaml.Node, key string) *yaml.Node {
+	if m.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i]
+		}
+	}
+	return nil
 }
 
 // validateSpec ensures the spec is structurally sound.

@@ -18,6 +18,11 @@ type Config struct {
 	MarkdownOutput string
 	EMDOutput      string
 	JUnitOutput    string
+
+	// GitHubAnnotations emits ::error file=...,line=...:: lines on stdout for
+	// failing assertions, so they appear inline in GitHub PR diffs. Auto-enabled
+	// when GITHUB_ACTIONS=true.
+	GitHubAnnotations bool
 }
 
 // DefaultConfig returns a Config with sensible defaults

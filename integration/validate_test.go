@@ -1022,3 +1022,85 @@ describe:
 		t.Errorf("pre-run timeout didn't cancel: took %s", elapsed)
 	}
 }
+
+// --- GitHub Actions annotations ---
+
+func TestE2E_GitHubAnnotations_FailingAssertions(t *testing.T) {
+	bin := buildBinary(t)
+	tmpDir := t.TempDir()
+	specDir := filepath.Join(tmpDir, "annotated")
+	manifestsDir := filepath.Join(specDir, "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Note line numbers below; the assertion `should:` lines are referenced.
+	spec := `name: "Annotated"
+tags: ["annotated"]
+describe:
+  - name: "Deployment"
+    select: 'select(.kind == "Deployment")'
+    it:
+      - should: "have 99 replicas"
+        expect: spec.replicas
+        toEqual: 99
+      - should: "be in fictional namespace"
+        expect: metadata.namespace
+        toEqual: "nonexistent"
+`
+	specPath := filepath.Join(specDir, "spec.yaml")
+	if err := os.WriteFile(specPath, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest := `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: foo
+  namespace: production
+spec:
+  replicas: 1
+`
+	if err := os.WriteFile(filepath.Join(manifestsDir, "deployment.yaml"), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, exitCode := run(t, bin, "validate", "--test-dir", tmpDir, "--github-annotations")
+
+	if exitCode != 1 {
+		t.Errorf("expected exit 1 (failures), got %d\n%s", exitCode, output)
+	}
+
+	// Both failing assertions should produce ::error lines pointing at spec.yaml
+	if !strings.Contains(output, "::error file=") {
+		t.Errorf("expected ::error annotations in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "spec.yaml") {
+		t.Errorf("expected spec.yaml in annotation paths, got:\n%s", output)
+	}
+	// Line numbers for the two `should:` lines (7 and 10 in the spec above).
+	for _, frag := range []string{"line=7", "line=10"} {
+		if !strings.Contains(output, frag) {
+			t.Errorf("expected %q in annotations, got:\n%s", frag, output)
+		}
+	}
+	// Both assertion descriptions should appear in the annotation messages.
+	for _, frag := range []string{"have 99 replicas", "be in fictional namespace"} {
+		if !strings.Contains(output, frag) {
+			t.Errorf("expected %q in annotations, got:\n%s", frag, output)
+		}
+	}
+}
+
+func TestE2E_GitHubAnnotations_PassingSuiteEmitsNothing(t *testing.T) {
+	bin := buildBinary(t)
+
+	output, exitCode := run(t, bin, "validate", "--test-dir", "integration/testdata", "--tag", "service", "--github-annotations")
+
+	if exitCode != 0 {
+		t.Errorf("expected exit 0 for passing suite, got %d\n%s", exitCode, output)
+	}
+	if strings.Contains(output, "::error") {
+		t.Errorf("expected no ::error lines for a passing suite, got:\n%s", output)
+	}
+}
