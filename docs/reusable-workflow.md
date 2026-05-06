@@ -1,5 +1,8 @@
 # Reusable Workflow
 
+[← back to docs index](index.md)
+
+
 yamlspec provides a reusable GitHub Actions workflow that any repo can call to run tests and post results as PR comments.
 
 ## Quick Start

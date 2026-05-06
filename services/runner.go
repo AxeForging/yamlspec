@@ -51,9 +51,10 @@ func (rs *RunnerService) RunAll(ctx context.Context, specs []DiscoveredSpec, con
 func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec, config *domain.Config) *domain.SpecResult {
 	start := time.Now()
 	result := &domain.SpecResult{
-		Name:   spec.Spec.Name,
-		Tags:   spec.Spec.Tags,
-		Status: domain.StatusPassed,
+		Name:       spec.Spec.Name,
+		Tags:       spec.Spec.Tags,
+		Status:     domain.StatusPassed,
+		SourceFile: spec.Spec.SourceFile,
 	}
 
 	// Execute pre_run commands

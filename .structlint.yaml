@@ -33,6 +33,8 @@ file_naming_pattern:
     - "*.md"
     - "*.xml"
     - "*.txt"
+    - "*.gif"
+    - "*.cast"
     - "Makefile"
     - ".gitignore"
     - ".goreleaser.yml"

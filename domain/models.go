@@ -6,6 +6,9 @@ type Spec struct {
 	Tags     []string    `yaml:"tags,omitempty"`
 	PreRun   []string    `yaml:"pre_run,omitempty"`
 	Describe []DescBlock `yaml:"describe"`
+
+	// SourceFile is the spec.yaml path. Populated by discovery; not parsed from YAML.
+	SourceFile string `yaml:"-"`
 }
 
 // HasTag returns true if the spec has at least one of the given tags
@@ -31,6 +34,10 @@ type DescBlock struct {
 type Assertion struct {
 	Should string `yaml:"should"`
 	Expect string `yaml:"expect"`
+
+	// SourceLine is the 1-indexed line of this assertion's `should:` in spec.yaml.
+	// Populated by discovery; not parsed from YAML.
+	SourceLine int `yaml:"-"`
 
 	// Equality
 	ToEqual    interface{} `yaml:"toEqual,omitempty"`

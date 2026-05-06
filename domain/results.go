@@ -20,12 +20,13 @@ type SuiteResult struct {
 
 // SpecResult is the result of one spec.yaml file
 type SpecResult struct {
-	Name      string           `json:"name" yaml:"name"`
-	Tags      []string         `json:"tags,omitempty" yaml:"tags,omitempty"`
-	Status    Status           `json:"status" yaml:"status"`
-	Duration  time.Duration    `json:"duration" yaml:"duration"`
-	Describes []DescribeResult `json:"describes,omitempty" yaml:"describes,omitempty"`
-	Error     string           `json:"error,omitempty" yaml:"error,omitempty"`
+	Name       string           `json:"name" yaml:"name"`
+	Tags       []string         `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Status     Status           `json:"status" yaml:"status"`
+	Duration   time.Duration    `json:"duration" yaml:"duration"`
+	Describes  []DescribeResult `json:"describes,omitempty" yaml:"describes,omitempty"`
+	Error      string           `json:"error,omitempty" yaml:"error,omitempty"`
+	SourceFile string           `json:"source_file,omitempty" yaml:"source_file,omitempty"`
 }
 
 // DescribeResult is the result of one describe block
@@ -38,11 +39,12 @@ type DescribeResult struct {
 
 // AssertionResult is the result of a single assertion
 type AssertionResult struct {
-	Should   string      `json:"should" yaml:"should"`
-	Status   Status      `json:"status" yaml:"status"`
-	Expected interface{} `json:"expected,omitempty" yaml:"expected,omitempty"`
-	Actual   interface{} `json:"actual,omitempty" yaml:"actual,omitempty"`
-	Error    string      `json:"error,omitempty" yaml:"error,omitempty"`
+	Should     string      `json:"should" yaml:"should"`
+	Status     Status      `json:"status" yaml:"status"`
+	Expected   interface{} `json:"expected,omitempty" yaml:"expected,omitempty"`
+	Actual     interface{} `json:"actual,omitempty" yaml:"actual,omitempty"`
+	Error      string      `json:"error,omitempty" yaml:"error,omitempty"`
+	SourceLine int         `json:"source_line,omitempty" yaml:"source_line,omitempty"`
 }
 
 // Summary aggregates counts across the run

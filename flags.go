@@ -58,4 +58,9 @@ var (
 		Name:  "junit-output",
 		Usage: "Write JUnit XML results to file",
 	}
+	githubAnnotationsFlag = cli.BoolFlag{
+		Name:   "github-annotations",
+		Usage:  "Emit ::error file=...,line=...:: lines on stdout for failing assertions (auto-enabled when GITHUB_ACTIONS=true)",
+		EnvVar: "GITHUB_ACTIONS",
+	}
 )

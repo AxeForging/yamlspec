@@ -57,6 +57,7 @@ func main() {
 				markdownOutputFlag,
 				emdOutputFlag,
 				junitOutputFlag,
+				githubAnnotationsFlag,
 			},
 			Action: validateAction.Execute,
 		},
