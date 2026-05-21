@@ -348,6 +348,9 @@ Selectors use JQ select() to pick which YAML documents to test:
     yamlspec validate --json-output results.json        # JSON output
     yamlspec validate --junit-output results.xml        # JUnit XML for CI
     yamlspec validate --emd-output results.md           # GitHub PR comment format
+    yamlspec validate --html-output results.html        # interactive HTML report
+    yamlspec report --output yamlspec-report.html       # generate HTML report
+    yamlspec serve --file yamlspec-report.html          # view report locally
     yamlspec validate --markdown-output results.md      # plain markdown
     yamlspec validate --yaml-output results.yaml        # YAML output
     yamlspec init my-test                               # scaffold new test

@@ -38,10 +38,17 @@ func (a *ValidateAction) Execute(c *cli.Context) error {
 		YAMLOutput:        c.String("yaml-output"),
 		MarkdownOutput:    c.String("markdown-output"),
 		EMDOutput:         c.String("emd-output"),
+		HTMLOutput:        c.String("html-output"),
 		JUnitOutput:       c.String("junit-output"),
 		GitHubAnnotations: c.Bool("github-annotations"),
 	}
 
+	return a.Run(config)
+}
+
+// Run executes specs with the provided config. It is shared by validate and
+// report so both commands produce identical test results.
+func (a *ValidateAction) Run(config *domain.Config) error {
 	if config.FailFast && config.Workers > 1 {
 		return fmt.Errorf("--fail-fast cannot be used with --workers > 1 " +
 			"(parallel workers can't honor ordered short-circuit; pick one)")
@@ -71,6 +78,7 @@ func (a *ValidateAction) Execute(c *cli.Context) error {
 		config.YAMLOutput:     services.NewYAMLFormatter(),
 		config.MarkdownOutput: services.NewMarkdownFormatter(),
 		config.EMDOutput:      services.NewEMDFormatter(),
+		config.HTMLOutput:     services.NewHTMLFormatter(),
 		config.JUnitOutput:    services.NewJUnitFormatter(),
 	}
 

@@ -118,6 +118,7 @@ jobs:
 
           ARGS="$ARGS --json-output yamlspec-results.json"
           ARGS="$ARGS --emd-output yamlspec-results.emd.md"
+          ARGS="$ARGS --html-output yamlspec-results.html"
           ARGS="$ARGS --junit-output yamlspec-results.xml"
           # GITHUB_ACTIONS=true auto-enables --github-annotations via env binding,
           # but we pass it explicitly for clarity in the run log.
@@ -150,6 +151,7 @@ jobs:
           path: |
             yamlspec-results.json
             yamlspec-results.emd.md
+            yamlspec-results.html
             yamlspec-results.xml
 
       # --- PR comment ---

@@ -17,6 +17,7 @@ type Config struct {
 	YAMLOutput     string
 	MarkdownOutput string
 	EMDOutput      string
+	HTMLOutput     string
 	JUnitOutput    string
 
 	// GitHubAnnotations emits ::error file=...,line=...:: lines on stdout for

@@ -20,13 +20,22 @@ type SuiteResult struct {
 
 // SpecResult is the result of one spec.yaml file
 type SpecResult struct {
-	Name       string           `json:"name" yaml:"name"`
-	Tags       []string         `json:"tags,omitempty" yaml:"tags,omitempty"`
-	Status     Status           `json:"status" yaml:"status"`
-	Duration   time.Duration    `json:"duration" yaml:"duration"`
-	Describes  []DescribeResult `json:"describes,omitempty" yaml:"describes,omitempty"`
-	Error      string           `json:"error,omitempty" yaml:"error,omitempty"`
-	SourceFile string           `json:"source_file,omitempty" yaml:"source_file,omitempty"`
+	Name          string           `json:"name" yaml:"name"`
+	Tags          []string         `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Status        Status           `json:"status" yaml:"status"`
+	Duration      time.Duration    `json:"duration" yaml:"duration"`
+	Describes     []DescribeResult `json:"describes,omitempty" yaml:"describes,omitempty"`
+	Error         string           `json:"error,omitempty" yaml:"error,omitempty"`
+	SourceFile    string           `json:"source_file,omitempty" yaml:"source_file,omitempty"`
+	SourceContent string           `json:"source_content,omitempty" yaml:"source_content,omitempty"`
+	Manifests     []ManifestResult `json:"manifests,omitempty" yaml:"manifests,omitempty"`
+}
+
+// ManifestResult captures a manifest file as tested after pre_run rendering.
+type ManifestResult struct {
+	Path      string `json:"path" yaml:"path"`
+	Content   string `json:"content" yaml:"content"`
+	Documents int    `json:"documents" yaml:"documents"`
 }
 
 // DescribeResult is the result of one describe block

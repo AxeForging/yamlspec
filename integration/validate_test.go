@@ -831,6 +831,52 @@ func TestE2E_EMDOutput_CollapsibleSections(t *testing.T) {
 	}
 }
 
+func TestE2E_HTMLOutput_SingleFileReport(t *testing.T) {
+	bin := buildBinary(t)
+	outFile := filepath.Join(t.TempDir(), "results.html")
+
+	run(t, bin, "validate", "--test-dir", "integration/testdata", "--tag", "multi-doc", "--html-output", outFile)
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("read html: %v", err)
+	}
+
+	content := string(data)
+	for _, want := range []string{
+		"<!doctype html>",
+		"yamlspec standards report",
+		"id=\"yamlspec-data\"",
+		"Multi-document YAML test",
+		"statusFilter",
+		"tagFilter",
+		"Spec YAML",
+		"Rendered manifest",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("expected HTML report to contain %q", want)
+		}
+	}
+}
+
+func TestE2E_ReportCommand_GeneratesHTML(t *testing.T) {
+	bin := buildBinary(t)
+	outFile := filepath.Join(t.TempDir(), "standards.html")
+
+	output, exitCode := run(t, bin, "report", "--test-dir", "integration/testdata", "--tag", "service", "--output", outFile)
+	if exitCode != 0 {
+		t.Errorf("expected exit 0, got %d\n%s", exitCode, output)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("read report: %v", err)
+	}
+	if !strings.Contains(string(data), "Single-file report") {
+		t.Error("expected generated report footer")
+	}
+}
+
 // --- Multiple simultaneous output formats ---
 
 func TestE2E_AllFormatsSimultaneously(t *testing.T) {
@@ -841,6 +887,7 @@ func TestE2E_AllFormatsSimultaneously(t *testing.T) {
 	yamlFile := filepath.Join(tmp, "results.yaml")
 	mdFile := filepath.Join(tmp, "results.md")
 	emdFile := filepath.Join(tmp, "results.emd.md")
+	htmlFile := filepath.Join(tmp, "results.html")
 	junitFile := filepath.Join(tmp, "results.xml")
 
 	output, exitCode := run(t, bin, "validate",
@@ -850,6 +897,7 @@ func TestE2E_AllFormatsSimultaneously(t *testing.T) {
 		"--yaml-output", yamlFile,
 		"--markdown-output", mdFile,
 		"--emd-output", emdFile,
+		"--html-output", htmlFile,
 		"--junit-output", junitFile,
 	)
 
@@ -858,7 +906,7 @@ func TestE2E_AllFormatsSimultaneously(t *testing.T) {
 	}
 
 	// All files should exist and be non-empty
-	for _, f := range []string{jsonFile, yamlFile, mdFile, emdFile, junitFile} {
+	for _, f := range []string{jsonFile, yamlFile, mdFile, emdFile, htmlFile, junitFile} {
 		info, err := os.Stat(f)
 		if err != nil {
 			t.Errorf("expected %s to exist: %v", filepath.Base(f), err)

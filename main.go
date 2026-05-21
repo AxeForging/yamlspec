@@ -23,6 +23,8 @@ func main() {
 	initAction := actions.NewInitAction()
 	aiHelpAction := actions.NewAIHelpAction()
 	versionAction := actions.NewVersionAction(Version, BuildTime, GitCommit)
+	reportAction := actions.NewReportAction()
+	serveAction := actions.NewServeAction()
 
 	app := cli.NewApp()
 	app.Name = "yamlspec"
@@ -56,10 +58,34 @@ func main() {
 				yamlOutputFlag,
 				markdownOutputFlag,
 				emdOutputFlag,
+				htmlOutputFlag,
 				junitOutputFlag,
 				githubAnnotationsFlag,
 			},
 			Action: validateAction.Execute,
+		},
+		{
+			Name:  "report",
+			Usage: "Generate an interactive single-file HTML report",
+			Flags: []cli.Flag{
+				testDirFlag,
+				tagFlag,
+				workersFlag,
+				failFastFlag,
+				preRunTimeoutFlag,
+				quietFlag,
+				reportOutputFlag,
+			},
+			Action: reportAction.Execute,
+		},
+		{
+			Name:  "serve",
+			Usage: "Serve a generated HTML report locally",
+			Flags: []cli.Flag{
+				serveFileFlag,
+				serveAddrFlag,
+			},
+			Action: serveAction.Execute,
 		},
 		{
 			Name:    "list",
