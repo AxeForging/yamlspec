@@ -85,10 +85,15 @@ jobs:
 
 1. Installs yamlspec (and optionally Helm/Kustomize)
 2. Runs `yamlspec validate` with your configuration
-3. Generates JSON, EMD, and JUnit XML results
+3. Generates JSON, EMD, HTML, and JUnit XML results
 4. Uploads results as workflow artifacts
 5. Posts enriched markdown as a PR comment (updates existing comment on re-push)
 6. Fails the job if any tests fail
+
+The HTML artifact is a self-contained standards report with embedded run data,
+styles, filters, original specs, and rendered manifests. It can be downloaded
+from workflow artifacts and opened directly in a browser, or served locally
+with `yamlspec serve --file yamlspec-results.html`.
 
 ## PR Comment
 

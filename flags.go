@@ -54,9 +54,28 @@ var (
 		Name:  "emd-output",
 		Usage: "Write enriched Markdown results to file",
 	}
+	htmlOutputFlag = cli.StringFlag{
+		Name:  "html-output",
+		Usage: "Write interactive single-file HTML report to file",
+	}
 	junitOutputFlag = cli.StringFlag{
 		Name:  "junit-output",
 		Usage: "Write JUnit XML results to file",
+	}
+	reportOutputFlag = cli.StringFlag{
+		Name:  "output, o",
+		Usage: "Write interactive single-file HTML report to file",
+		Value: "yamlspec-report.html",
+	}
+	serveFileFlag = cli.StringFlag{
+		Name:  "file, f",
+		Usage: "HTML report file to serve",
+		Value: "yamlspec-report.html",
+	}
+	serveAddrFlag = cli.StringFlag{
+		Name:  "addr",
+		Usage: "Address to serve on",
+		Value: "127.0.0.1:8080",
 	}
 	githubAnnotationsFlag = cli.BoolFlag{
 		Name:   "github-annotations",

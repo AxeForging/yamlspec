@@ -51,10 +51,11 @@ func (rs *RunnerService) RunAll(ctx context.Context, specs []DiscoveredSpec, con
 func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec, config *domain.Config) *domain.SpecResult {
 	start := time.Now()
 	result := &domain.SpecResult{
-		Name:       spec.Spec.Name,
-		Tags:       spec.Spec.Tags,
-		Status:     domain.StatusPassed,
-		SourceFile: spec.Spec.SourceFile,
+		Name:          spec.Spec.Name,
+		Tags:          spec.Spec.Tags,
+		Status:        domain.StatusPassed,
+		SourceFile:    spec.Spec.SourceFile,
+		SourceContent: readFileBestEffort(spec.Spec.SourceFile),
 	}
 
 	// Execute pre_run commands
@@ -68,13 +69,14 @@ func (rs *RunnerService) RunOne(ctx context.Context, spec DiscoveredSpec, config
 	}
 
 	// Re-discover manifests after pre_run (they may have been generated)
-	manifests, err := rs.loadManifests(spec)
+	manifests, manifestResults, err := rs.loadManifests(spec)
 	if err != nil {
 		result.Status = domain.StatusError
 		result.Error = fmt.Sprintf("failed to load manifests: %v", err)
 		result.Duration = time.Since(start)
 		return result
 	}
+	result.Manifests = manifestResults
 
 	if len(manifests) == 0 {
 		result.Status = domain.StatusError
@@ -153,12 +155,12 @@ func (rs *RunnerService) execPreRun(ctx context.Context, command, dir string, ti
 	return nil
 }
 
-func (rs *RunnerService) loadManifests(spec DiscoveredSpec) ([]interface{}, error) {
+func (rs *RunnerService) loadManifests(spec DiscoveredSpec) ([]interface{}, []domain.ManifestResult, error) {
 	// Re-discover manifests (pre_run may have generated new files)
 	ds := NewDiscoveryService()
 	manifestFiles, err := ds.discoverManifests(spec.Dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Also use any originally discovered manifests not in the refreshed list
@@ -173,10 +175,11 @@ func (rs *RunnerService) loadManifests(spec DiscoveredSpec) ([]interface{}, erro
 	}
 
 	var allManifests []interface{}
+	var manifestResults []domain.ManifestResult
 	for _, file := range manifestFiles {
 		data, err := os.ReadFile(file)
 		if err != nil {
-			return nil, fmt.Errorf("read '%s': %w", file, err)
+			return nil, nil, fmt.Errorf("read '%s': %w", file, err)
 		}
 
 		content := strings.TrimSpace(string(data))
@@ -186,13 +189,29 @@ func (rs *RunnerService) loadManifests(spec DiscoveredSpec) ([]interface{}, erro
 
 		parsed, err := ParseManifests(content)
 		if err != nil {
-			return nil, fmt.Errorf("parse '%s': %w", file, err)
+			return nil, nil, fmt.Errorf("parse '%s': %w", file, err)
 		}
 
+		manifestResults = append(manifestResults, domain.ManifestResult{
+			Path:      file,
+			Content:   string(data),
+			Documents: len(parsed),
+		})
 		allManifests = append(allManifests, parsed...)
 	}
 
-	return allManifests, nil
+	return allManifests, manifestResults, nil
+}
+
+func readFileBestEffort(path string) string {
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 func (rs *RunnerService) buildSummary(specs []domain.SpecResult, duration time.Duration) domain.Summary {

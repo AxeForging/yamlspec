@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Interactive single-file HTML standards reports via `--html-output` and the
+  new `yamlspec report` command, with search, status filtering, tag filtering,
+  expandable specs, assertion details, original specs, rendered manifests, and
+  embedded run data.
+- `yamlspec serve` for viewing generated HTML reports locally.
+- Reusable workflow artifact upload for `yamlspec-results.html` alongside
+  JSON, enriched Markdown, and JUnit output.
+
 ## [0.1.0] — 2026-05-06
 
 The first usable yamlspec build, including a correctness-hardening pass and

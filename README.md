@@ -16,7 +16,8 @@ YAML test framework with RSpec-like assertions. Validate any YAML manifests — 
 - **RSpec-like syntax** — `describe`/`it`/`should` vocabulary developers already know
 - **20+ assertion operators** — equality, comparisons, strings, regex, existence, arrays, sets
 - **Engine agnostic** — test plain YAML, Helm charts, Kustomize overlays, or anything that outputs YAML
-- **6 output formats** — console, JSON, YAML, Markdown, enriched Markdown (GitHub PRs), JUnit XML
+- **7 output formats** — console, JSON, YAML, Markdown, enriched Markdown (GitHub PRs), HTML, JUnit XML
+- **Single-file HTML reports** — searchable, filterable standards reports with specs and rendered manifests embedded
 - **Reusable CI workflow** — one-line GitHub Actions setup with PR commenting
 - **Zero YAML dependencies** — no Helm or Kustomize libraries; rendering happens via `pre_run` shell commands
 - **5 direct Go dependencies** — minimal, fast, easy to build
@@ -60,6 +61,8 @@ yamlspec validate --tag deployment
 
 # Multiple output formats
 yamlspec validate --json-output results.json --junit-output results.xml
+yamlspec report --output yamlspec-report.html
+yamlspec serve --file yamlspec-report.html
 
 # Parallel execution
 yamlspec validate --workers 4
@@ -265,6 +268,7 @@ Operators can be combined — all must pass:
 | `--yaml-output` | YAML | YAML-native workflows |
 | `--markdown-output` | Markdown | Documentation |
 | `--emd-output` | Enriched MD | GitHub PR comments |
+| `--html-output` | HTML | Interactive single-file standards report |
 | `--junit-output` | JUnit XML | CI/CD integration |
 
 ## CLI Reference
@@ -272,6 +276,8 @@ Operators can be combined — all must pass:
 ```
 COMMANDS:
   validate, test, run   Run test specs against YAML manifests
+  report                Generate an interactive single-file HTML report
+  serve                 Serve a generated HTML report locally
   list, ls              List discovered specs and tags
   init                  Scaffold a new test spec
   version               Show version information
@@ -287,9 +293,14 @@ VALIDATE FLAGS:
   --yaml-output         YAML output file
   --markdown-output     Markdown output file
   --emd-output          Enriched markdown output file
+  --html-output         Interactive single-file HTML report
   --junit-output        JUnit XML output file
   --github-annotations  Emit ::error file=...,line=... for failing assertions
                         (auto-enabled when GITHUB_ACTIONS=true)
+
+REPORT:
+  yamlspec report --test-dir tests --output yamlspec-report.html
+  yamlspec serve --file yamlspec-report.html --addr 127.0.0.1:8080
 ```
 
 ## CI/CD — Reusable Workflow
